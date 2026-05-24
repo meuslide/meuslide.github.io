@@ -485,7 +485,7 @@ function getCodigo() {
 }
 
 function createCodigoBase() {
-  return `slide-${Math.random().toString(36).slice(2, 8)}`;
+  return Math.random().toString(36).slice(2, 8);
 }
 
 async function ensureCodigo() {
@@ -507,7 +507,7 @@ async function ensureCodigo() {
     }
   }
 
-  codigo = `${createCodigoBase()}-${Date.now().toString(36)}`;
+  codigo = `${createCodigoBase()}${Date.now().toString(36).slice(-2)}`;
   history.replaceState(null, '', `${location.pathname}?codigo=${codigo}${location.hash || ''}`);
   return codigo;
 }
