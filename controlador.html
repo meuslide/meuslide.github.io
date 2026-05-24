@@ -679,7 +679,8 @@ function getSlideKind(slide) {
 }
 
 function getCurrentVideo() {
-  return slides[currentIndex]?.querySelector('video') || null;
+  const wrap = document.getElementById('thumb-wrap');
+  return wrap ? wrap.querySelector('video') : null;
 }
 
 function updateMediaState() {
@@ -896,10 +897,13 @@ async function sendAcao(acao, novoIndex) {
 }
 
 async function sendVideoAcao(acao) {
-  if (!apresentacao || !syncCurrentVideoAction(acao)) {
+  const currentSlide = slides[currentIndex];
+  if (!apresentacao || getSlideKind(currentSlide) !== 'video') {
     flash('Sem vídeo neste slide', true);
     return;
   }
+
+  syncCurrentVideoAction(acao);
 
   const { error } = await db
     .from('controle')
