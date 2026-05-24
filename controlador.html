@@ -822,11 +822,6 @@ function updateThumb() {
   if (!s) return;
   wrap.innerHTML = '';
 
-  const activeVideo = slides[currentIndex]?.querySelector('video');
-  if (activeVideo) {
-    activeVideo.muted = true;
-    activeVideo.play().catch(() => {});
-  }
   if (getSlideKind(s) === 'video') {
     const v = document.createElement('video');
     v.src = s.arquivo_url;
@@ -834,10 +829,6 @@ function updateThumb() {
     v.preload = 'metadata';
     wrap.appendChild(v);
   } else {
-  if (syncCurrentVideoAction(acao)) {
-    return;
-  }
-
     const img = document.createElement('img');
     img.src = s.arquivo_url;
     wrap.appendChild(img);
@@ -845,6 +836,20 @@ function updateThumb() {
   document.getElementById('slide-num').textContent = currentIndex + 1;
   document.getElementById('slide-total').textContent = `de ${slides.length} slide${slides.length !== 1 ? 's' : ''}`;
   updateMediaState();
+}
+
+function handleAcao(acao, slideAtual) {
+  if (syncCurrentVideoAction(acao)) {
+    return;
+  }
+
+  if (acao === 'proximo' || acao === 'anterior' || acao === 'ir_para' || acao === 'primeiro') {
+    const target = slideAtual;
+
+    if (target !== currentIndex) {
+      goToSlide(target);
+    }
+  }
 }
 
 async function sendAcao(acao, novoIndex) {
