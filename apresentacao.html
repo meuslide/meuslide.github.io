@@ -76,6 +76,65 @@ body {
   opacity:1;
 }
 
+/* ── QR OVERLAY ── */
+#qr-overlay {
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:20px;
+  background:#ffffff;
+  color:#0a0a0f;
+  z-index:30;
+  padding:32px;
+}
+#qr-overlay.visible { display:flex; }
+.qr-card {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  padding:28px;
+  border:1px solid rgba(0,0,0,0.1);
+  border-radius:20px;
+  background:#ffffff;
+  box-shadow:0 18px 50px rgba(0,0,0,0.08);
+}
+.qr-title {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:1.1rem;
+  letter-spacing:-0.03em;
+  text-align:center;
+}
+.qr-subtitle {
+  max-width:320px;
+  text-align:center;
+  font-size:0.85rem;
+  color:#454545;
+  line-height:1.5;
+}
+.qr-code {
+  width:300px;
+  height:300px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#ffffff;
+  padding:10px;
+}
+.qr-url {
+  max-width:320px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.78rem;
+  color:#666;
+  word-break:break-all;
+  text-align:center;
+}
+
 /* ── EFFECTS ── */
 #effect-layer {
   position:fixed;
@@ -256,6 +315,15 @@ body:hover #hud { opacity:1; }
 
 <div id="effect-layer"></div>
 
+<div id="qr-overlay" aria-live="polite">
+  <div class="qr-card">
+    <div class="qr-title">Escaneie para abrir este slide</div>
+    <div class="qr-subtitle">A câmera do celular vai ler o QR em fundo branco com mais facilidade.</div>
+    <div class="qr-code" id="qr-code"></div>
+    <div class="qr-url" id="qr-url"></div>
+  </div>
+</div>
+
 <div id="hud">
   <div class="slide-counter" id="hud-counter">1 / 1</div>
   <div class="hud-title" id="hud-title"></div>
@@ -265,6 +333,7 @@ body:hover #hud { opacity:1; }
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 // ══════════════════════════════════════
 //  ⚙️  CONFIGURE AQUI
@@ -281,12 +350,26 @@ function getCodigo() {
   return (p.get('codigo') || location.pathname.replace(/^\//, '').split('/')[0] || '').toLowerCase();
 }
 
+function getInitialSlideIndex() {
+  const p = new URLSearchParams(location.search);
+  const slideParam = p.get('slide');
+  if (!slideParam) return null;
+  const parsed = Number.parseInt(slideParam, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return null;
+  return parsed - 1;
+}
+
 const codigo = getCodigo();
 let slides = [];
 let currentIndex = 0;
 let apresentacaoId = null;
 let pointerState = { x: 0.5, y: 0.5, visible: false };
+let qrVisible = false;
 let lastEffectStamp = null;
+
+function getSlideUrl(slideIndex = currentIndex) {
+  return `${location.origin}/${encodeURIComponent(codigo)}/slides?slide=${slideIndex + 1}`;
+}
 
 function getCurrentMediaRect() {
   const currentSlide = slides[currentIndex];
@@ -324,6 +407,47 @@ function syncPointerFromPayload(payload) {
     pointerState.visible = newVisible;
   }
   renderPointer();
+}
+
+function renderQrOverlay() {
+  const overlay = document.getElementById('qr-overlay');
+  const codeEl = document.getElementById('qr-code');
+  const urlEl = document.getElementById('qr-url');
+
+  if (!overlay || !codeEl || !urlEl) return;
+
+  if (!qrVisible) {
+    overlay.classList.remove('visible');
+    codeEl.innerHTML = '';
+    urlEl.textContent = '';
+    return;
+  }
+
+  const qrUrl = getSlideUrl(currentIndex);
+  codeEl.innerHTML = '';
+
+  if (window.QRCode) {
+    new QRCode(codeEl, {
+      text: qrUrl,
+      width: 280,
+      height: 280,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } else {
+    codeEl.textContent = qrUrl;
+  }
+
+  urlEl.textContent = qrUrl;
+  overlay.classList.add('visible');
+}
+
+function syncQrFromPayload(payload) {
+  if (typeof payload.qr_visible === 'boolean') {
+    qrVisible = payload.qr_visible;
+    renderQrOverlay();
+  }
 }
 
 function clearEffectLayer() {
@@ -440,6 +564,7 @@ function goToSlide(index, skipPause) {
 
   document.getElementById('hud-counter').textContent = `${currentIndex + 1} / ${slides.length}`;
   window.requestAnimationFrame(renderPointer);
+  renderQrOverlay();
 }
 
 function handleAcao(acao, slideAtual) {
@@ -492,14 +617,19 @@ async function init() {
   // Busca estado atual
   const { data: ctrl } = await db
     .from('controle')
-    .select('slide_atual, pointer_x, pointer_y, pointer_visible, efeito, efeito_updated_at')
+    .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, efeito, efeito_updated_at')
     .eq('apresentacao_id', ap.id)
     .single();
 
-  const startIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
+  const urlStartIndex = getInitialSlideIndex();
+  const startIndex = urlStartIndex !== null ? Math.min(urlStartIndex, slides.length - 1) : (ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0);
   goToSlide(startIndex);
   if (ctrl) syncPointerFromPayload(ctrl);
   if (ctrl) lastEffectStamp = ctrl.efeito_updated_at || null;
+  if (ctrl) {
+    qrVisible = ctrl.qr_visible ?? false;
+    renderQrOverlay();
+  }
 
   // Remove loading
   const loadEl = document.getElementById('loading');
@@ -517,6 +647,7 @@ async function init() {
       const { slide_atual, acao } = payload.new;
       handleAcao(acao, slide_atual);
       syncPointerFromPayload(payload.new);
+      syncQrFromPayload(payload.new);
       const effectStamp = payload.new.efeito_updated_at || null;
       const effectType = payload.new.efeito;
       if (effectType && effectType !== 'none' && effectStamp && effectStamp !== lastEffectStamp) {
