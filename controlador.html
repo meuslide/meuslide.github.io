@@ -650,6 +650,11 @@ function flash(msg, isErr=false) {
   el._t = setTimeout(() => el.classList.remove('visible'), 2000);
 }
 
+function formatDbError(prefix, error) {
+  const detail = error?.message || error?.details || error?.hint || 'erro desconhecido';
+  return `${prefix}: ${detail}`;
+}
+
 const codigo = getCodigo();
 let apresentacao = null;
 let slides = [];
@@ -872,7 +877,8 @@ async function sendAcao(acao, novoIndex) {
     .eq('apresentacao_id', apresentacao.id);
 
   if (error) {
-    flash('Erro ao enviar', true);
+    console.error('sendAcao failed', error);
+    flash(formatDbError('Erro ao enviar', error), true);
   } else {
     currentIndex = novoIndex;
     updateThumb();
@@ -909,7 +915,8 @@ async function sendVideoAcao(acao) {
     .eq('apresentacao_id', apresentacao.id);
 
   if (error) {
-    flash('Erro ao enviar comando do vídeo', true);
+    console.error('sendVideoAcao failed', error);
+    flash(formatDbError('Erro ao enviar comando do vídeo', error), true);
   } else {
     updateMediaState();
     flash(acao === 'play_video' ? '▶ Play' : acao === 'pause_video' ? '⏸ Pause' : '↺ Reiniciar');
@@ -931,7 +938,8 @@ async function sendEfeito(efeito) {
     .eq('apresentacao_id', apresentacao.id);
 
   if (error) {
-    flash('Erro ao disparar efeito', true);
+    console.error('sendEfeito failed', error);
+    flash(formatDbError('Erro ao disparar efeito', error), true);
   } else {
     flash(efeito === 'festa' ? '🎉 Festa' : efeito === 'coracoes' ? '💖 Corações' : '🎈 Balões');
   }
@@ -954,7 +962,8 @@ async function sendQr(visible) {
     .eq('apresentacao_id', apresentacao.id);
 
   if (error) {
-    flash('Erro ao atualizar QR', true);
+    console.error('sendQr failed', error);
+    flash(formatDbError('Erro ao atualizar QR', error), true);
   } else {
     setQrState(visible);
     flash(visible ? 'QR Code ativo' : 'QR Code oculto');
