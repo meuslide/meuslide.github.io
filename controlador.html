@@ -194,6 +194,111 @@ body {
 }
 .slide-total { font-size:0.8rem; opacity:0.4; margin-top:2px; }
 
+/* ── POLLS ── */
+.poll-panel {
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:18px;
+}
+.poll-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.poll-title {
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.8rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  opacity:0.8;
+}
+.poll-sub {
+  font-size:0.75rem;
+  opacity:0.45;
+  margin-top:4px;
+}
+.poll-state {
+  font-size:0.75rem;
+  opacity:0.45;
+  white-space:nowrap;
+}
+.poll-list {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.poll-card {
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;
+  padding:14px;
+  background:rgba(255,255,255,0.03);
+}
+.poll-card.active {
+  border-color:rgba(42,110,232,0.45);
+  background:rgba(42,110,232,0.08);
+}
+.poll-card-head {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.poll-card-question {
+  font-size:0.9rem;
+  font-weight:700;
+  line-height:1.4;
+  margin-bottom:6px;
+}
+.poll-card-meta {
+  font-size:0.75rem;
+  opacity:0.45;
+  line-height:1.4;
+}
+.poll-card-badges {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:10px;
+}
+.poll-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:0.68rem;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  padding:5px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+}
+.poll-badge.ok { border-color:rgba(26,158,92,0.35); color:#b8ffd7; }
+.poll-badge.warn { border-color:rgba(232,77,42,0.35); color:#ffd0c6; }
+.poll-badge.info { border-color:rgba(42,110,232,0.35); color:#d5e2ff; }
+.poll-card-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px;
+}
+.poll-action-btn {
+  width:auto;
+  padding:10px 12px;
+  min-width:110px;
+}
+.poll-empty {
+  font-size:0.8rem;
+  opacity:0.45;
+  padding:6px 0;
+}
+
 /* ── MEDIA CONTROLS ── */
 .media-panel {
   background:rgba(255,255,255,0.04);
@@ -554,6 +659,19 @@ body {
     </div>
   </div>
 
+  <div class="poll-panel">
+    <div class="poll-head">
+      <div>
+        <div class="poll-title">Enquetes</div>
+        <div class="poll-sub">Inicie, encerre ou mostre resultados das perguntas cadastradas.</div>
+      </div>
+      <div class="poll-state" id="poll-state">sem enquetes</div>
+    </div>
+    <div class="poll-list" id="poll-list">
+      <div class="poll-empty">Carregando enquetes...</div>
+    </div>
+  </div>
+
   <div class="btn-row">
     <button class="ctrl-btn btn-prev" id="btn-prev">
       <span class="btn-icon">←</span>
@@ -669,6 +787,17 @@ let pointerLastTapPos = null;
 let effectSending = false;
 let qrVisible = false;
 let qrSending = false;
+let polls = [];
+let pollControlState = { enquete_id: null, enquete_status: 'closed' };
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
 
 function getSlideKind(slide) {
   const tipo = (slide?.tipo || '').toLowerCase();
@@ -820,6 +949,150 @@ function setQrState(visible) {
 function setQrDisabled(disabled) {
   const btn = document.getElementById('btn-qr');
   if (btn) btn.disabled = disabled;
+}
+
+function getPollStatusLabel(status) {
+  if (status === 'open') return 'Ativa';
+  if (status === 'results') return 'Resultados';
+  return 'Encerrada';
+}
+
+function getPollStatusClass(status) {
+  if (status === 'open') return 'ok';
+  if (status === 'results') return 'info';
+  return 'warn';
+}
+
+function getPollTypeLabel(tipo) {
+  return tipo === 'checkbox' ? 'Caixa de seleção' : 'Múltipla escolha';
+}
+
+function updatePollStateLabel() {
+  const el = document.getElementById('poll-state');
+  if (!el) return;
+  if (!pollControlState.enquete_id) {
+    el.textContent = 'sem enquetes ativas';
+    return;
+  }
+  el.textContent = `${getPollStatusLabel(pollControlState.enquete_status)}`;
+}
+
+function renderPolls() {
+  const list = document.getElementById('poll-list');
+  if (!list) return;
+
+  list.innerHTML = '';
+
+  if (!polls.length) {
+    list.innerHTML = '<div class="poll-empty">Nenhuma enquete cadastrada.</div>';
+    updatePollStateLabel();
+    return;
+  }
+
+  polls.forEach(poll => {
+    const isActive = poll.id === pollControlState.enquete_id;
+    const statusLabel = isActive ? getPollStatusLabel(pollControlState.enquete_status) : 'Pausada';
+    const card = document.createElement('div');
+    card.className = `poll-card${isActive ? ' active' : ''}`;
+    card.innerHTML = `
+      <div class="poll-card-head">
+        <div>
+          <div class="poll-card-question">${escapeHtml(poll.pergunta)}</div>
+          <div class="poll-card-meta">${escapeHtml(getPollTypeLabel(poll.tipo))} · ${poll.opcoes.length} opções${poll.com_respostas_certas ? ' · com respostas corretas' : ''}</div>
+        </div>
+      </div>
+      <div class="poll-card-badges">
+        <span class="poll-badge ${isActive ? getPollStatusClass(pollControlState.enquete_status) : 'warn'}">${statusLabel}</span>
+        ${poll.com_respostas_certas ? '<span class="poll-badge ok">Quiz</span>' : '<span class="poll-badge info">Pesquisa</span>'}
+      </div>
+      <div class="poll-card-actions">
+        <button class="media-btn poll-action-btn" data-action="start">Iniciar</button>
+        <button class="media-btn poll-action-btn" data-action="close">Encerrar</button>
+        <button class="media-btn poll-action-btn" data-action="results">Exibir resultados</button>
+      </div>
+    `;
+
+    card.querySelector('[data-action="start"]').addEventListener('click', () => setPollStatus(poll, 'open'));
+    card.querySelector('[data-action="close"]').addEventListener('click', () => setPollStatus(poll, 'closed'));
+    card.querySelector('[data-action="results"]').addEventListener('click', () => setPollStatus(poll, 'results'));
+
+    list.appendChild(card);
+  });
+
+  updatePollStateLabel();
+}
+
+async function loadPolls() {
+  if (!apresentacao) return;
+
+  const { data, error } = await db
+    .from('enquetes')
+    .select('id, pergunta, tipo, com_respostas_certas, ordem')
+    .eq('apresentacao_id', apresentacao.id)
+    .order('ordem');
+
+  if (error) {
+    polls = [];
+    const list = document.getElementById('poll-list');
+    if (list) list.innerHTML = `<div class="poll-empty">Erro ao carregar enquetes: ${escapeHtml(error.message)}</div>`;
+    updatePollStateLabel();
+    return;
+  }
+
+  const pollData = data || [];
+  const pollIds = pollData.map(p => p.id);
+
+  let optionsByPoll = {};
+  if (pollIds.length > 0) {
+    const { data: optionsData } = await db
+      .from('enquete_opcoes')
+      .select('id, enquete_id, texto, correta, ordem')
+      .in('enquete_id', pollIds)
+      .order('ordem');
+
+    (optionsData || []).forEach(option => {
+      if (!optionsByPoll[option.enquete_id]) optionsByPoll[option.enquete_id] = [];
+      optionsByPoll[option.enquete_id].push(option);
+    });
+  }
+
+  polls = pollData.map(poll => ({
+    ...poll,
+    opcoes: optionsByPoll[poll.id] || []
+  }));
+
+  renderPolls();
+}
+
+async function setPollStatus(poll, status) {
+  if (!apresentacao || !poll) return;
+
+  const action = status === 'open' ? 'poll_open' : status === 'results' ? 'poll_results' : 'poll_close';
+  const { error } = await db
+    .from('controle')
+    .upsert({
+      apresentacao_id: apresentacao.id,
+      slide_atual: currentIndex,
+      acao: action,
+      qr_visible: qrVisible,
+      pointer_x: pointerState.x,
+      pointer_y: pointerState.y,
+      pointer_visible: pointerState.visible,
+      pointer_updated_at: new Date().toISOString(),
+      enquete_id: poll.id,
+      enquete_status: status,
+      enquete_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'apresentacao_id' });
+
+  if (error) {
+    flash(formatDbError('Erro ao atualizar enquete', error), true);
+    return;
+  }
+
+  pollControlState = { enquete_id: poll.id, enquete_status: status };
+  renderPolls();
+  flash(status === 'open' ? 'Enquete iniciada' : status === 'results' ? 'Resultados exibidos' : 'Enquete encerrada');
 }
 
 function updateThumb() {
@@ -1058,11 +1331,32 @@ async function doAuth(ap) {
     // Pega estado atual
     const { data: ctrl } = await db
         .from('controle')
-      .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible')
+      .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, enquete_id, enquete_status, enquete_updated_at')
         .eq('apresentacao_id', ap.id)
         .single();
 
+    if (!ctrl) {
+      await db
+        .from('controle')
+        .upsert({
+          apresentacao_id: ap.id,
+          slide_atual: 0,
+          acao: 'init',
+          qr_visible: false,
+          pointer_x: 0.5,
+          pointer_y: 0.5,
+          pointer_visible: true,
+          enquete_status: 'closed',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'apresentacao_id' });
+    }
+
     currentIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
+
+    pollControlState = {
+      enquete_id: ctrl?.enquete_id || null,
+      enquete_status: ctrl?.enquete_status || 'closed'
+    };
 
     if (!ctrl) {
       await db
@@ -1088,6 +1382,8 @@ async function doAuth(ap) {
 
     show('state-ctrl');
     updateThumb();
+    updatePollStateLabel();
+    loadPolls();
 
     // Botões
     const prevButton = document.getElementById('btn-prev');
@@ -1226,8 +1522,25 @@ async function doAuth(ap) {
         if (typeof payload.new.qr_visible === 'boolean') {
           setQrState(payload.new.qr_visible);
         }
+        if (payload.new.enquete_id !== pollControlState.enquete_id || payload.new.enquete_status !== pollControlState.enquete_status) {
+          pollControlState = {
+            enquete_id: payload.new.enquete_id || null,
+            enquete_status: payload.new.enquete_status || 'closed'
+          };
+          updatePollStateLabel();
+          renderPolls();
+        }
         updateMediaState();
       })
+      .subscribe();
+
+    db.channel(`polls-sync-${ap.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'enquetes',
+        filter: `apresentacao_id=eq.${ap.id}`
+      }, () => loadPolls())
       .subscribe();
 
     setEffectButtonsDisabled(false);

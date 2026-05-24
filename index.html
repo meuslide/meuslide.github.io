@@ -94,7 +94,7 @@ main {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 48px;
-  max-width: 520px;
+  max-width: 760px;
   width: 100%;
   box-shadow: 0 4px 24px rgba(0,0,0,0.06);
 }
@@ -128,7 +128,8 @@ label {
   margin-bottom: 8px;
 }
 input[type="text"],
-input[type="password"] {
+input[type="password"],
+select {
   width: 100%;
   padding: 13px 16px;
   border: 1.5px solid var(--border);
@@ -141,6 +142,11 @@ input[type="password"] {
   transition: border-color 0.2s;
 }
 input:focus {
+  border-color: var(--ink);
+  background: white;
+}
+
+select:focus {
   border-color: var(--ink);
   background: white;
 }
@@ -364,6 +370,143 @@ input:focus {
   margin: 28px 0;
 }
 
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+
+.section-sub {
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.poll-builder {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(245,243,238,0.72);
+}
+
+.poll-row {
+  display: grid;
+  grid-template-columns: 1fr 180px 220px;
+  gap: 12px;
+  align-items: end;
+}
+
+.poll-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  min-height: 48px;
+}
+
+.poll-toggle input { width: 16px; height: 16px; }
+
+.poll-options-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 18px 0 10px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.poll-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.poll-option-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.poll-option-row .small-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.poll-option-row button {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: white;
+  cursor: pointer;
+}
+
+.poll-option-row button:hover { border-color: var(--ink); }
+
+.poll-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.poll-add-btn {
+  width: auto;
+  margin-top: 0;
+  padding: 12px 16px;
+}
+
+.poll-drafts {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.poll-draft {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: white;
+}
+.poll-draft-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.poll-draft-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.poll-draft-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.poll-draft-remove {
+  border: none;
+  background: transparent;
+  color: var(--error);
+  font-weight: 700;
+  cursor: pointer;
+}
+
 /* ── HIDDEN ── */
 .hidden { display: none !important; }
 </style>
@@ -445,6 +588,44 @@ input:focus {
           <div class="upload-hint">PNG, JPG, MP4, WebM · A ordem de seleção define a sequência</div>
         </div>
         <div id="file-list"></div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section-title">Enquetes</div>
+      <p class="section-sub">Crie perguntas com múltipla escolha ou caixa de seleção. Elas ficarão disponíveis no controlador antes de iniciar a apresentação.</p>
+
+      <div class="poll-builder">
+        <div class="poll-row">
+          <div class="field">
+            <label>Pergunta</label>
+            <input type="text" id="poll-question" placeholder="Ex: Qual opção você prefere?" maxlength="180">
+          </div>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="poll-type">
+              <option value="multipla">Múltipla escolha</option>
+              <option value="checkbox">Caixa de seleção</option>
+            </select>
+          </div>
+          <label class="poll-toggle">
+            <input type="checkbox" id="poll-has-correct">
+            <span>Tem respostas corretas</span>
+          </label>
+        </div>
+
+        <div class="poll-options-head">
+          <span>Opções</span>
+          <button class="btn btn-outline poll-add-btn" id="btn-add-poll-option" type="button">Adicionar opção</button>
+        </div>
+        <div class="poll-options" id="poll-options"></div>
+
+        <div class="poll-actions">
+          <button class="btn btn-accent poll-add-btn" id="btn-add-poll" type="button">Adicionar enquete à lista</button>
+          <button class="btn btn-outline poll-add-btn" id="btn-reset-poll" type="button">Limpar campos</button>
+        </div>
+
+        <div class="poll-drafts" id="poll-drafts"></div>
       </div>
 
       <div class="progress-wrap" id="progress-wrap">
@@ -559,6 +740,159 @@ async function init() {
 
 // ── Upload de arquivos ──
 let selectedFiles = [];
+let draftPolls = [];
+let pollOptionSeq = 0;
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function createPollOptionRow(text = '', correct = false) {
+  const row = document.createElement('div');
+  row.className = 'poll-option-row';
+  row.dataset.optionId = `poll-option-${pollOptionSeq += 1}`;
+  row.innerHTML = `
+    <input type="text" class="poll-option-text" placeholder="Digite uma opção" value="${escapeHtml(text)}">
+    <label class="small-check poll-option-correct-wrap">
+      <input type="checkbox" class="poll-option-correct" ${correct ? 'checked' : ''}>
+      <span>Correta</span>
+    </label>
+    <button type="button" class="poll-option-remove" title="Remover opção">×</button>
+  `;
+
+  row.querySelector('.poll-option-remove').addEventListener('click', () => {
+    const optionsWrap = document.getElementById('poll-options');
+    if (optionsWrap.children.length > 2) {
+      row.remove();
+    }
+  });
+
+  return row;
+}
+
+function refreshPollOptionVisibility() {
+  const hasCorrect = document.getElementById('poll-has-correct').checked;
+  document.querySelectorAll('.poll-option-correct-wrap').forEach(el => {
+    el.style.display = hasCorrect ? 'flex' : 'none';
+  });
+}
+
+function resetPollBuilder() {
+  document.getElementById('poll-question').value = '';
+  document.getElementById('poll-type').value = 'multipla';
+  document.getElementById('poll-has-correct').checked = false;
+  const wrap = document.getElementById('poll-options');
+  wrap.innerHTML = '';
+  wrap.appendChild(createPollOptionRow('', false));
+  wrap.appendChild(createPollOptionRow('', false));
+  refreshPollOptionVisibility();
+}
+
+function getCurrentPollDraft() {
+  const pergunta = document.getElementById('poll-question').value.trim();
+  const tipo = document.getElementById('poll-type').value;
+  const temCorretas = document.getElementById('poll-has-correct').checked;
+  const opcoes = Array.from(document.querySelectorAll('#poll-options .poll-option-row')).map(row => ({
+    texto: row.querySelector('.poll-option-text').value.trim(),
+    correta: temCorretas && row.querySelector('.poll-option-correct').checked
+  })).filter(item => item.texto);
+
+  return { pergunta, tipo, temCorretas, opcoes };
+}
+
+function renderPollDrafts() {
+  const list = document.getElementById('poll-drafts');
+  list.innerHTML = '';
+
+  if (draftPolls.length === 0) {
+    list.innerHTML = '<div class="poll-draft"><div class="poll-draft-meta">Nenhuma enquete adicionada ainda.</div></div>';
+    return;
+  }
+
+  draftPolls.forEach((poll, index) => {
+    const card = document.createElement('div');
+    card.className = 'poll-draft';
+    const tipoLabel = poll.tipo === 'checkbox' ? 'Caixa de seleção' : 'Múltipla escolha';
+    card.innerHTML = `
+      <div class="poll-draft-head">
+        <div>
+          <div class="poll-draft-title">${escapeHtml(poll.pergunta)}</div>
+          <div class="poll-draft-meta">${escapeHtml(tipoLabel)} · ${poll.opcoes.length} opções${poll.temCorretas ? ' · com respostas corretas' : ''}</div>
+        </div>
+        <button class="poll-draft-remove" type="button">Remover</button>
+      </div>
+    `;
+    card.querySelector('.poll-draft-remove').addEventListener('click', () => {
+      draftPolls.splice(index, 1);
+      renderPollDrafts();
+    });
+    list.appendChild(card);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const addPollOptionButton = document.getElementById('btn-add-poll-option');
+  const hasCorrectInput = document.getElementById('poll-has-correct');
+  const pollTypeInput = document.getElementById('poll-type');
+  const resetPollButton = document.getElementById('btn-reset-poll');
+  const addPollButton = document.getElementById('btn-add-poll');
+
+  if (addPollOptionButton) {
+    addPollOptionButton.addEventListener('click', () => {
+      document.getElementById('poll-options').appendChild(createPollOptionRow());
+      refreshPollOptionVisibility();
+    });
+  }
+  if (hasCorrectInput) hasCorrectInput.addEventListener('change', refreshPollOptionVisibility);
+  if (pollTypeInput) pollTypeInput.addEventListener('change', refreshPollOptionVisibility);
+  if (resetPollButton) resetPollButton.addEventListener('click', resetPollBuilder);
+  if (addPollButton) {
+    addPollButton.addEventListener('click', () => {
+      const draft = getCurrentPollDraft();
+      const errorEl = document.getElementById('alert-new');
+      const correctCount = draft.opcoes.filter(opcao => opcao.correta).length;
+
+      if (!draft.pergunta) {
+        errorEl.textContent = 'Insira uma pergunta para a enquete.';
+        errorEl.style.display = 'block';
+        errorEl.className = 'alert alert-error';
+        return;
+      }
+      if (draft.opcoes.length < 2) {
+        errorEl.textContent = 'A enquete precisa de pelo menos duas opções válidas.';
+        errorEl.style.display = 'block';
+        errorEl.className = 'alert alert-error';
+        return;
+      }
+      if (draft.temCorretas && correctCount === 0) {
+        errorEl.textContent = 'Marque pelo menos uma resposta correta ou desative essa opção.';
+        errorEl.style.display = 'block';
+        errorEl.className = 'alert alert-error';
+        return;
+      }
+      if (draft.temCorretas && draft.tipo === 'multipla' && correctCount !== 1) {
+        errorEl.textContent = 'Em múltipla escolha, marque somente uma resposta correta.';
+        errorEl.style.display = 'block';
+        errorEl.className = 'alert alert-error';
+        return;
+      }
+
+      draftPolls.push(draft);
+      renderPollDrafts();
+      resetPollBuilder();
+    });
+  }
+
+  if (document.getElementById('poll-options')) {
+    resetPollBuilder();
+    renderPollDrafts();
+  }
+});
 
 function getFileKind(file) {
   const name = (file?.name || '').toLowerCase();
@@ -599,6 +933,39 @@ function renderFileList() {
     `;
     list.appendChild(div);
   });
+}
+
+async function savePolls(apId) {
+  for (let index = 0; index < draftPolls.length; index += 1) {
+    const poll = draftPolls[index];
+    const { data: enquete, error: pollError } = await db
+      .from('enquetes')
+      .insert({
+        apresentacao_id: apId,
+        pergunta: poll.pergunta,
+        tipo: poll.tipo,
+        com_respostas_certas: poll.temCorretas,
+        ordem: index
+      })
+      .select()
+      .single();
+
+    if (pollError) {
+      throw new Error(`Erro ao criar enquete "${poll.pergunta}": ${pollError.message}`);
+    }
+
+    const optionsInsert = poll.opcoes.map((opcao, optionIndex) => ({
+      enquete_id: enquete.id,
+      texto: opcao.texto,
+      correta: poll.temCorretas ? !!opcao.correta : false,
+      ordem: optionIndex
+    }));
+
+    const { error: optionsError } = await db.from('enquete_opcoes').insert(optionsInsert);
+    if (optionsError) {
+      throw new Error(`Erro ao salvar opções da enquete "${poll.pergunta}": ${optionsError.message}`);
+    }
+  }
 }
 
 // ── Criar apresentação ──
@@ -672,6 +1039,17 @@ document.getElementById('btn-criar').addEventListener('click', async () => {
 
   // 4. Cria registro de controle
   await db.from('controle').insert({ apresentacao_id: ap.id, slide_atual: 0, acao: 'init' });
+
+  // 5. Cria enquetes opcionais
+  if (draftPolls.length > 0) {
+    try {
+      await savePolls(ap.id);
+    } catch (pollError) {
+      btn.disabled = false;
+      btn.textContent = 'Criar Apresentação';
+      return showError(pollError.message);
+    }
+  }
 
   alertEl.textContent = '✓ Apresentação criada com sucesso! Redirecionando...';
   alertEl.className = 'alert alert-success';

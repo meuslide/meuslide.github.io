@@ -135,6 +135,180 @@ body {
   text-align:center;
 }
 
+/* ── POLL OVERLAY ── */
+#poll-overlay {
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.68);
+  z-index:40;
+  padding:18px;
+}
+#poll-overlay.visible { display:flex; }
+.poll-shell {
+  width:min(720px, 100%);
+  max-height:min(88vh, 980px);
+  overflow:auto;
+  background:rgba(10,10,15,0.94);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:24px;
+  box-shadow:0 30px 80px rgba(0,0,0,0.45);
+  padding:22px;
+}
+.poll-kicker {
+  font-size:0.7rem;
+  font-weight:700;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  opacity:0.45;
+  margin-bottom:12px;
+}
+.poll-question {
+  font-size:clamp(1.4rem, 4vw, 2.4rem);
+  line-height:1.12;
+  letter-spacing:-0.04em;
+  margin-bottom:12px;
+}
+.poll-subtitle {
+  font-family:'DM Sans',sans-serif;
+  font-size:0.9rem;
+  line-height:1.5;
+  color:rgba(255,255,255,0.6);
+  margin-bottom:18px;
+}
+.poll-choice-list {
+  display:grid;
+  gap:10px;
+  margin-bottom:16px;
+}
+.poll-option {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.04);
+  border-radius:16px;
+  padding:14px 16px;
+  cursor:pointer;
+  transition:transform 0.15s, border-color 0.15s, background 0.15s;
+}
+.poll-option:hover { transform:translateY(-1px); border-color:rgba(255,255,255,0.22); background:rgba(255,255,255,0.06); }
+.poll-option input {
+  width:18px;
+  height:18px;
+  flex-shrink:0;
+  accent-color:#e84d2a;
+}
+.poll-option-text {
+  font-family:'DM Sans',sans-serif;
+  font-size:0.98rem;
+  line-height:1.4;
+}
+.poll-submit-row {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.poll-submit-btn {
+  border:none;
+  border-radius:12px;
+  background:#e84d2a;
+  color:white;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  padding:14px 18px;
+  cursor:pointer;
+  transition:transform 0.15s, background 0.15s;
+}
+.poll-submit-btn:hover { background:#d03e1e; }
+.poll-submit-btn:active { transform:scale(0.98); }
+.poll-submit-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+.poll-note {
+  font-family:'DM Sans',sans-serif;
+  font-size:0.82rem;
+  color:rgba(255,255,255,0.56);
+  line-height:1.45;
+  margin-top:10px;
+}
+.poll-error {
+  color:#ff9e8e;
+}
+.poll-results {
+  display:none;
+  margin-top:12px;
+}
+.poll-results.visible { display:block; }
+.poll-result-summary {
+  display:grid;
+  gap:10px;
+  margin-bottom:16px;
+}
+.poll-result-summary-card {
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:16px;
+  padding:14px 16px;
+  background:rgba(255,255,255,0.04);
+}
+.poll-result-summary-title {
+  font-family:'Syne',sans-serif;
+  font-size:0.72rem;
+  font-weight:700;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  opacity:0.55;
+  margin-bottom:8px;
+}
+.poll-result-summary-value {
+  font-size:1.5rem;
+  letter-spacing:-0.03em;
+}
+.poll-result-list {
+  display:grid;
+  gap:10px;
+}
+.poll-result-row {
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(255,255,255,0.04);
+}
+.poll-result-row-top {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px;
+  font-size:0.92rem;
+}
+.poll-result-bar {
+  height:10px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.08);
+  overflow:hidden;
+}
+.poll-result-bar span {
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg, #e84d2a, #ff8b6a);
+}
+.poll-result-meta {
+  margin-top:8px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.78rem;
+  opacity:0.5;
+}
+.poll-result-correct {
+  margin-top:10px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.84rem;
+  color:#b8ffd7;
+}
+
 /* ── EFFECTS ── */
 #effect-layer {
   position:fixed;
@@ -324,6 +498,21 @@ body:hover #hud { opacity:1; }
   </div>
 </div>
 
+<div id="poll-overlay" aria-live="polite">
+  <div class="poll-shell">
+    <div class="poll-kicker" id="poll-kicker">Enquete ao vivo</div>
+    <div class="poll-question" id="poll-question"></div>
+    <div class="poll-subtitle" id="poll-subtitle"></div>
+    <div class="poll-choice-list" id="poll-choice-list"></div>
+    <div class="poll-submit-row" id="poll-submit-row">
+      <button class="poll-submit-btn" id="poll-submit-btn" type="button">Responder</button>
+      <button class="poll-submit-btn" id="poll-clear-btn" type="button" style="background:rgba(255,255,255,0.12);">Limpar seleção</button>
+    </div>
+    <div class="poll-note" id="poll-note"></div>
+    <div class="poll-results" id="poll-results"></div>
+  </div>
+</div>
+
 <div id="hud">
   <div class="slide-counter" id="hud-counter">1 / 1</div>
   <div class="hud-title" id="hud-title"></div>
@@ -366,6 +555,33 @@ let apresentacaoId = null;
 let pointerState = { x: 0.5, y: 0.5, visible: false };
 let qrVisible = false;
 let lastEffectStamp = null;
+let activePoll = null;
+let activePollOptions = [];
+let activePollResponses = [];
+let pollSelection = [];
+let pollResponsesChannel = null;
+let currentLoadedPollId = null;
+let pollControlState = { enquete_id: null, enquete_status: 'closed' };
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function getPollParticipantId() {
+  const key = `meuslide-participant-${codigo}`;
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const created = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  localStorage.setItem(key, created);
+  return created;
+}
+
+const pollParticipantId = getPollParticipantId();
 
 function getSlideKind(slide) {
   const tipo = (slide?.tipo || '').toLowerCase();
@@ -456,6 +672,268 @@ function syncQrFromPayload(payload) {
     qrVisible = payload.qr_visible;
     renderQrOverlay();
   }
+}
+
+function setPollOverlayVisible(visible) {
+  const overlay = document.getElementById('poll-overlay');
+  if (!overlay) return;
+  overlay.classList.toggle('visible', visible);
+}
+
+function clearPollOverlay() {
+  activePoll = null;
+  activePollOptions = [];
+  activePollResponses = [];
+  pollSelection = [];
+  const questionEl = document.getElementById('poll-question');
+  const subtitleEl = document.getElementById('poll-subtitle');
+  const choiceList = document.getElementById('poll-choice-list');
+  const noteEl = document.getElementById('poll-note');
+  const resultsEl = document.getElementById('poll-results');
+  if (questionEl) questionEl.textContent = '';
+  if (subtitleEl) subtitleEl.textContent = '';
+  if (choiceList) choiceList.innerHTML = '';
+  if (noteEl) noteEl.textContent = '';
+  if (resultsEl) {
+    resultsEl.innerHTML = '';
+    resultsEl.classList.remove('visible');
+  }
+  setPollOverlayVisible(false);
+}
+
+function formatPollSelectionText(ids) {
+  return ids.length ? `${ids.length} resposta${ids.length !== 1 ? 's' : ''} selecionada${ids.length !== 1 ? 's' : ''}` : 'Nenhuma opção selecionada';
+}
+
+function renderPollOverlay() {
+  const questionEl = document.getElementById('poll-question');
+  const subtitleEl = document.getElementById('poll-subtitle');
+  const choiceList = document.getElementById('poll-choice-list');
+  const submitRow = document.getElementById('poll-submit-row');
+  const submitBtn = document.getElementById('poll-submit-btn');
+  const clearBtn = document.getElementById('poll-clear-btn');
+  const noteEl = document.getElementById('poll-note');
+  const resultsEl = document.getElementById('poll-results');
+
+  if (!activePoll || pollControlState.enquete_status === 'closed') {
+    clearPollOverlay();
+    return;
+  }
+
+  setPollOverlayVisible(true);
+
+  if (questionEl) questionEl.textContent = activePoll.pergunta || 'Enquete';
+  if (subtitleEl) {
+    subtitleEl.textContent = `${activePoll.tipo === 'checkbox' ? 'Caixa de seleção' : 'Múltipla escolha'}${activePoll.com_respostas_certas ? ' · quiz com respostas corretas' : ' · pesquisa aberta'}`;
+  }
+
+  if (pollControlState.enquete_status === 'results') {
+    if (submitRow) submitRow.style.display = 'none';
+    if (choiceList) choiceList.style.display = 'none';
+    if (noteEl) noteEl.textContent = activePoll.com_respostas_certas
+      ? 'Os resultados mostram quantas pessoas acertaram e erraram.'
+      : 'Resumo das respostas enviadas pela audiência.';
+    renderPollResults();
+    return;
+  }
+
+  if (choiceList) choiceList.style.display = 'grid';
+  if (submitRow) submitRow.style.display = 'flex';
+  if (resultsEl) {
+    resultsEl.innerHTML = '';
+    resultsEl.classList.remove('visible');
+  }
+  if (noteEl) noteEl.textContent = pollSelection.length ? formatPollSelectionText(pollSelection) : 'Escolha uma ou mais opções e toque em Responder.';
+  if (submitBtn) submitBtn.disabled = false;
+  if (clearBtn) clearBtn.disabled = false;
+
+  if (choiceList) {
+    choiceList.innerHTML = '';
+    const inputType = activePoll.tipo === 'checkbox' ? 'checkbox' : 'radio';
+    activePollOptions.forEach(option => {
+      const optionRow = document.createElement('label');
+      optionRow.className = 'poll-option';
+      optionRow.innerHTML = `
+        <input type="${inputType}" name="poll-choice" value="${option.id}" ${pollSelection.includes(option.id) ? 'checked' : ''}>
+        <span class="poll-option-text">${escapeHtml(option.texto)}</span>
+      `;
+      optionRow.querySelector('input').addEventListener('change', () => {
+        if (activePoll.tipo === 'checkbox') {
+          const selected = new Set(pollSelection);
+          if (optionRow.querySelector('input').checked) selected.add(option.id);
+          else selected.delete(option.id);
+          pollSelection = Array.from(selected);
+        } else {
+          pollSelection = [option.id];
+        }
+        if (noteEl) noteEl.textContent = formatPollSelectionText(pollSelection);
+      });
+      choiceList.appendChild(optionRow);
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      pollSelection = [];
+      renderPollOverlay();
+    };
+  }
+
+  if (submitBtn) {
+    submitBtn.onclick = submitPollResponse;
+  }
+}
+
+function renderPollResults() {
+  const resultsEl = document.getElementById('poll-results');
+  if (!resultsEl) return;
+
+  const responseRows = activePollResponses || [];
+  const counts = new Map(activePollOptions.map(option => [option.id, 0]));
+  responseRows.forEach(row => {
+    const answers = Array.isArray(row.respostas) ? row.respostas : [];
+    answers.forEach(optionId => {
+      counts.set(optionId, (counts.get(optionId) || 0) + 1);
+    });
+  });
+
+  const totalResponses = responseRows.length;
+  const maxCount = Math.max(1, ...Array.from(counts.values()));
+  const correctIds = new Set(activePollOptions.filter(option => option.correta).map(option => option.id));
+  let correctResponses = 0;
+  let incorrectResponses = 0;
+
+  if (activePoll.com_respostas_certas) {
+    responseRows.forEach(row => {
+      const selectedSet = new Set(Array.isArray(row.respostas) ? row.respostas : []);
+      const isCorrect = selectedSet.size === correctIds.size && Array.from(selectedSet).every(id => correctIds.has(id));
+      if (isCorrect) correctResponses += 1;
+      else incorrectResponses += 1;
+    });
+  }
+
+  const summaryCards = [
+    `<div class="poll-result-summary-card"><div class="poll-result-summary-title">Respostas</div><div class="poll-result-summary-value">${totalResponses}</div></div>`,
+  ];
+  if (activePoll.com_respostas_certas) {
+    summaryCards.push(`<div class="poll-result-summary-card"><div class="poll-result-summary-title">Acertos</div><div class="poll-result-summary-value">${correctResponses}</div></div>`);
+    summaryCards.push(`<div class="poll-result-summary-card"><div class="poll-result-summary-title">Erros</div><div class="poll-result-summary-value">${incorrectResponses}</div></div>`);
+  }
+
+  resultsEl.innerHTML = `
+    <div class="poll-result-summary">${summaryCards.join('')}</div>
+    <div class="poll-result-list">
+      ${activePollOptions.map(option => {
+        const count = counts.get(option.id) || 0;
+        const percent = totalResponses > 0 ? Math.round((count / totalResponses) * 100) : 0;
+        const correctMarker = activePoll.com_respostas_certas && option.correta ? '<div class="poll-result-correct">Resposta correta</div>' : '';
+        return `
+          <div class="poll-result-row">
+            <div class="poll-result-row-top">
+              <div>${escapeHtml(option.texto)}</div>
+              <div>${count} voto${count !== 1 ? 's' : ''}</div>
+            </div>
+            <div class="poll-result-bar"><span style="width:${percent}%"></span></div>
+            <div class="poll-result-meta">${percent}% da audiência escolheu esta opção</div>
+            ${correctMarker}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  resultsEl.classList.add('visible');
+}
+
+async function loadActivePollFromControl(controlPayload) {
+  const pollId = controlPayload?.enquete_id || pollControlState.enquete_id;
+  const status = controlPayload?.enquete_status || pollControlState.enquete_status || 'closed';
+
+  pollControlState = { enquete_id: pollId || null, enquete_status: status };
+
+  if (pollResponsesChannel) {
+    await db.removeChannel(pollResponsesChannel);
+    pollResponsesChannel = null;
+  }
+
+  if (!pollId || status === 'closed') {
+    clearPollOverlay();
+    return;
+  }
+
+  const [pollRes, optionsRes, responsesRes, myResponseRes] = await Promise.all([
+    db.from('enquetes').select('id, pergunta, tipo, com_respostas_certas').eq('id', pollId).single(),
+    db.from('enquete_opcoes').select('id, enquete_id, texto, correta, ordem').eq('enquete_id', pollId).order('ordem'),
+    db.from('enquete_respostas').select('enquete_id, participante_id, respostas').eq('enquete_id', pollId),
+    db.from('enquete_respostas').select('respostas').eq('enquete_id', pollId).eq('participante_id', pollParticipantId).maybeSingle()
+  ]);
+
+  if (!pollRes.data) {
+    clearPollOverlay();
+    return;
+  }
+
+  activePoll = pollRes.data;
+  activePollOptions = optionsRes.data || [];
+  activePollResponses = responsesRes.data || [];
+  if (myResponseRes.data && Array.isArray(myResponseRes.data.respostas)) {
+    pollSelection = myResponseRes.data.respostas;
+  } else if (pollSelection.length === 0 || currentLoadedPollId !== pollId) {
+    pollSelection = [];
+  }
+  currentLoadedPollId = pollId;
+
+  renderPollOverlay();
+
+  pollResponsesChannel = db.channel(`poll-responses-${pollId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'enquete_respostas',
+      filter: `enquete_id=eq.${pollId}`
+    }, async () => {
+      const { data: refreshedResponses } = await db
+        .from('enquete_respostas')
+        .select('enquete_id, participante_id, respostas')
+        .eq('enquete_id', pollId);
+      activePollResponses = refreshedResponses || [];
+      if (pollControlState.enquete_status === 'results') {
+        renderPollResults();
+      }
+    })
+    .subscribe();
+}
+
+async function submitPollResponse() {
+  if (!activePoll || pollControlState.enquete_status !== 'open') return;
+  if (!pollSelection.length) {
+    const noteEl = document.getElementById('poll-note');
+    if (noteEl) noteEl.textContent = 'Selecione pelo menos uma opção antes de responder.';
+    return;
+  }
+
+  const submitBtn = document.getElementById('poll-submit-btn');
+  if (submitBtn) submitBtn.disabled = true;
+
+  const { error } = await db
+    .from('enquete_respostas')
+    .upsert({
+      enquete_id: activePoll.id,
+      participante_id: pollParticipantId,
+      respostas: pollSelection,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'enquete_id,participante_id' });
+
+  if (error) {
+    const noteEl = document.getElementById('poll-note');
+    if (noteEl) noteEl.textContent = `Não foi possível salvar sua resposta: ${error.message}`;
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  const noteEl = document.getElementById('poll-note');
+  if (noteEl) noteEl.textContent = 'Resposta salva. Você pode alterar enquanto a enquete estiver aberta.';
+  if (submitBtn) submitBtn.disabled = false;
 }
 
 function clearEffectLayer() {
@@ -639,7 +1117,7 @@ async function init() {
   // Busca estado atual
   const { data: ctrl } = await db
     .from('controle')
-    .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, efeito, efeito_updated_at')
+    .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, efeito, efeito_updated_at, enquete_id, enquete_status, enquete_updated_at')
     .eq('apresentacao_id', ap.id)
     .single();
 
@@ -652,6 +1130,8 @@ async function init() {
     qrVisible = ctrl.qr_visible ?? false;
     renderQrOverlay();
   }
+
+  await loadActivePollFromControl(ctrl);
 
   // Remove loading
   const loadEl = document.getElementById('loading');
@@ -670,6 +1150,9 @@ async function init() {
       handleAcao(acao, slide_atual);
       syncPointerFromPayload(payload.new);
       syncQrFromPayload(payload.new);
+      if (payload.new.enquete_id !== pollControlState.enquete_id || payload.new.enquete_status !== pollControlState.enquete_status) {
+        loadActivePollFromControl(payload.new);
+      }
       const effectStamp = payload.new.efeito_updated_at || null;
       const effectType = payload.new.efeito;
       if (effectType && effectType !== 'none' && effectStamp && effectStamp !== lastEffectStamp) {
