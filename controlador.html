@@ -756,13 +756,14 @@ function schedulePointerSync() {
     pointerDirty = false;
     await db
       .from('controle')
-      .update({
+      .upsert({
+        apresentacao_id: apresentacao.id,
         pointer_x: pointerState.x,
         pointer_y: pointerState.y,
         pointer_visible: pointerState.visible,
-        pointer_updated_at: new Date().toISOString()
-      })
-      .eq('apresentacao_id', apresentacao.id);
+        pointer_updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'apresentacao_id' });
   });
 }
 
@@ -864,7 +865,8 @@ async function sendAcao(acao, novoIndex) {
 
   const { error } = await db
     .from('controle')
-    .update({
+    .upsert({
+      apresentacao_id: apresentacao.id,
       slide_atual: novoIndex,
       acao,
       qr_visible: qrVisible,
@@ -873,8 +875,7 @@ async function sendAcao(acao, novoIndex) {
       pointer_visible: pointerState.visible,
       pointer_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    })
-    .eq('apresentacao_id', apresentacao.id);
+    }, { onConflict: 'apresentacao_id' });
 
   if (error) {
     console.error('sendAcao failed', error);
@@ -902,7 +903,8 @@ async function sendVideoAcao(acao) {
 
   const { error } = await db
     .from('controle')
-    .update({
+    .upsert({
+      apresentacao_id: apresentacao.id,
       slide_atual: currentIndex,
       acao,
       qr_visible: qrVisible,
@@ -911,8 +913,7 @@ async function sendVideoAcao(acao) {
       pointer_visible: pointerState.visible,
       pointer_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    })
-    .eq('apresentacao_id', apresentacao.id);
+    }, { onConflict: 'apresentacao_id' });
 
   if (error) {
     console.error('sendVideoAcao failed', error);
@@ -930,12 +931,12 @@ async function sendEfeito(efeito) {
 
   const { error } = await db
     .from('controle')
-    .update({
+    .upsert({
+      apresentacao_id: apresentacao.id,
       efeito,
       efeito_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    })
-    .eq('apresentacao_id', apresentacao.id);
+    }, { onConflict: 'apresentacao_id' });
 
   if (error) {
     console.error('sendEfeito failed', error);
@@ -955,11 +956,11 @@ async function sendQr(visible) {
 
   const { error } = await db
     .from('controle')
-    .update({
+    .upsert({
+      apresentacao_id: apresentacao.id,
       qr_visible: visible,
       updated_at: new Date().toISOString()
-    })
-    .eq('apresentacao_id', apresentacao.id);
+    }, { onConflict: 'apresentacao_id' });
 
   if (error) {
     console.error('sendQr failed', error);
@@ -1058,6 +1059,21 @@ async function doAuth(ap) {
         .single();
 
     currentIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
+
+    if (!ctrl) {
+      await db
+        .from('controle')
+        .upsert({
+          apresentacao_id: ap.id,
+          slide_atual: currentIndex,
+          acao: 'init',
+          qr_visible: false,
+          pointer_x: 0.5,
+          pointer_y: 0.5,
+          pointer_visible: true,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'apresentacao_id' });
+    }
 
     if (ctrl && typeof ctrl.pointer_x === 'number' && typeof ctrl.pointer_y === 'number') {
       updatePointer(ctrl.pointer_x, ctrl.pointer_y, ctrl.pointer_visible ?? true, false);
