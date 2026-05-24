@@ -484,6 +484,34 @@ function getCodigo() {
   return path || null;
 }
 
+function createCodigoBase() {
+  return `slide-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function ensureCodigo() {
+  if (codigo) return codigo;
+
+  for (let i = 0; i < 10; i += 1) {
+    const candidato = createCodigoBase();
+    const { data: existente, error } = await db
+      .from('apresentacoes')
+      .select('id')
+      .eq('codigo', candidato)
+      .limit(1);
+
+    if (error) continue;
+    if (!existente || existente.length === 0) {
+      codigo = candidato;
+      history.replaceState(null, '', `${location.pathname}?codigo=${codigo}${location.hash || ''}`);
+      return codigo;
+    }
+  }
+
+  codigo = `${createCodigoBase()}-${Date.now().toString(36)}`;
+  history.replaceState(null, '', `${location.pathname}?codigo=${codigo}${location.hash || ''}`);
+  return codigo;
+}
+
 async function hashSenha(senha) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(senha));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
@@ -501,11 +529,11 @@ function formatBytes(b) {
   return (b/1048576).toFixed(1) + ' MB';
 }
 
-const codigo = getCodigo();
-document.getElementById('header-codigo').textContent = codigo || '—';
+let codigo = getCodigo();
 
 async function init() {
-  if (!codigo) { show('state-new'); return; }
+  await ensureCodigo();
+  document.getElementById('header-codigo').textContent = codigo || '—';
 
   const { data, error } = await db
     .from('apresentacoes')
