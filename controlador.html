@@ -194,6 +194,67 @@ body {
 }
 .slide-total { font-size:0.8rem; opacity:0.4; margin-top:2px; }
 
+/* ── POINTER ── */
+.pointer-panel {
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:18px;
+}
+.pointer-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.pointer-title {
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.8rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  opacity:0.8;
+}
+.pointer-state {
+  font-size:0.75rem;
+  opacity:0.45;
+}
+.pointer-canvas {
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:12px;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.12) 1px, transparent 0) 0 0 / 18px 18px,
+    rgba(255,255,255,0.025);
+  border:1px solid rgba(255,255,255,0.08);
+  overflow:hidden;
+  touch-action:none;
+  user-select:none;
+}
+.pointer-canvas::before {
+  content:'';
+  position:absolute;
+  inset:14px;
+  border:1px dashed rgba(255,255,255,0.08);
+  border-radius:10px;
+}
+.pointer-dot {
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #ff9b8f 0%, #ff4938 38%, #e11c12 100%);
+  box-shadow:0 0 0 6px rgba(232,77,42,0.16), 0 8px 24px rgba(0,0,0,0.35);
+  transform:translate(-50%, -50%);
+  cursor:grab;
+}
+.pointer-dot:active { cursor:grabbing; }
+
 /* ── BUTTONS ── */
 .btn-row {
   display:grid;
@@ -303,6 +364,16 @@ body {
     <div class="slide-total" id="slide-total">de 1 slide</div>
   </div>
 
+  <div class="pointer-panel">
+    <div class="pointer-head">
+      <div class="pointer-title">Ponteiro</div>
+      <div class="pointer-state" id="pointer-state">arraste a bolinha</div>
+    </div>
+    <div class="pointer-canvas" id="pointer-canvas" aria-label="Área de controle do ponteiro">
+      <div class="pointer-dot" id="pointer-dot"></div>
+    </div>
+  </div>
+
   <div class="btn-row">
     <button class="ctrl-btn btn-prev" id="btn-prev">
       <span class="btn-icon">←</span>
@@ -361,6 +432,64 @@ let apresentacao = null;
 let slides = [];
 let currentIndex = 0;
 let sending = false;
+let pointerState = { x: 0.5, y: 0.5, visible: true };
+let pointerDirty = false;
+let pointerFrame = 0;
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function setPointerDotPosition(x, y) {
+  const dot = document.getElementById('pointer-dot');
+  if (!dot) return;
+  dot.style.left = `${clamp01(x) * 100}%`;
+  dot.style.top = `${clamp01(y) * 100}%`;
+}
+
+function setPointerStateLabel(text) {
+  const el = document.getElementById('pointer-state');
+  if (el) el.textContent = text;
+}
+
+function schedulePointerSync() {
+  if (pointerFrame) return;
+  pointerFrame = window.requestAnimationFrame(async () => {
+    pointerFrame = 0;
+    if (!pointerDirty || !apresentacao) return;
+    pointerDirty = false;
+    await db
+      .from('controle')
+      .update({
+        pointer_x: pointerState.x,
+        pointer_y: pointerState.y,
+        pointer_visible: pointerState.visible,
+        pointer_updated_at: new Date().toISOString()
+      })
+      .eq('apresentacao_id', apresentacao.id);
+  });
+}
+
+function updatePointer(x, y, visible = true, sync = true) {
+  pointerState = { x: clamp01(x), y: clamp01(y), visible };
+  setPointerDotPosition(pointerState.x, pointerState.y);
+  const dot = document.getElementById('pointer-dot');
+  if (dot) dot.style.opacity = visible ? '1' : '0';
+  setPointerStateLabel(visible ? 'ao vivo' : 'oculto');
+  if (sync) {
+    pointerDirty = true;
+    schedulePointerSync();
+  }
+}
+
+function pointerEventToNorm(event) {
+  const canvas = document.getElementById('pointer-canvas');
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: clamp01((event.clientX - rect.left) / rect.width),
+    y: clamp01((event.clientY - rect.top) / rect.height)
+  };
+}
 
 function updateThumb() {
   const wrap = document.getElementById('thumb-wrap');
@@ -390,7 +519,15 @@ async function sendAcao(acao, novoIndex) {
 
   const { error } = await db
     .from('controle')
-    .update({ slide_atual: novoIndex, acao, updated_at: new Date().toISOString() })
+    .update({
+      slide_atual: novoIndex,
+      acao,
+      pointer_x: pointerState.x,
+      pointer_y: pointerState.y,
+      pointer_visible: pointerState.visible,
+      pointer_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
     .eq('apresentacao_id', apresentacao.id);
 
   if (error) {
@@ -492,6 +629,12 @@ async function doAuth(ap) {
 
     currentIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
 
+    if (ctrl && typeof ctrl.pointer_x === 'number' && typeof ctrl.pointer_y === 'number') {
+      updatePointer(ctrl.pointer_x, ctrl.pointer_y, ctrl.pointer_visible ?? true, false);
+    } else {
+      updatePointer(0.5, 0.5, true, false);
+    }
+
     show('state-ctrl');
     updateThumb();
 
@@ -510,6 +653,29 @@ async function doAuth(ap) {
       if (e.key === 'ArrowRight' && currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
     });
 
+    const canvas = document.getElementById('pointer-canvas');
+    const onPointerMove = event => {
+      if (!dragging) return;
+      const { x, y } = pointerEventToNorm(event);
+      updatePointer(x, y, true, true);
+    };
+
+    let dragging = false;
+    canvas.addEventListener('pointerdown', event => {
+      dragging = true;
+      canvas.setPointerCapture(event.pointerId);
+      const { x, y } = pointerEventToNorm(event);
+      updatePointer(x, y, true, true);
+    });
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', event => {
+      dragging = false;
+      canvas.releasePointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointercancel', () => {
+      dragging = false;
+    });
+
     // Realtime: sync se outro controlador mudar
     db.channel(`ctrl-sync-${ap.id}`)
       .on('postgres_changes', {
@@ -522,6 +688,9 @@ async function doAuth(ap) {
         if (ni !== currentIndex) {
           currentIndex = ni;
           updateThumb();
+        }
+        if (typeof payload.new.pointer_x === 'number' && typeof payload.new.pointer_y === 'number') {
+          updatePointer(payload.new.pointer_x, payload.new.pointer_y, payload.new.pointer_visible ?? true, false);
         }
       })
       .subscribe();

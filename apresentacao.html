@@ -53,6 +53,29 @@ body {
   display:block;
 }
 
+/* ── POINTER OVERLAY ── */
+#pointer-layer {
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:20;
+}
+.pointer-marker {
+  position:absolute;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #ffb1a7 0%, #ff4b3c 38%, #e11c12 100%);
+  box-shadow:0 0 0 8px rgba(232,77,42,0.14), 0 10px 24px rgba(0,0,0,0.35);
+  transform:translate(-50%, -50%);
+  opacity:0;
+  transition:opacity 0.15s ease;
+}
+
+.pointer-marker.visible {
+  opacity:1;
+}
+
 /* ── HUD ── */
 #hud {
   position:fixed;
@@ -185,6 +208,10 @@ body:hover #hud { opacity:1; }
 
 <div id="viewer"></div>
 
+<div id="pointer-layer">
+  <div class="pointer-marker" id="pointer-marker"></div>
+</div>
+
 <div id="hud">
   <div class="slide-counter" id="hud-counter">1 / 1</div>
   <div class="hud-title" id="hud-title"></div>
@@ -213,6 +240,45 @@ const codigo = getCodigo();
 let slides = [];
 let currentIndex = 0;
 let apresentacaoId = null;
+let pointerState = { x: 0.5, y: 0.5, visible: false };
+
+function getCurrentMediaRect() {
+  const currentSlide = slides[currentIndex];
+  if (!currentSlide) return document.getElementById('viewer').getBoundingClientRect();
+  const media = currentSlide.querySelector('img, video');
+  if (media) return media.getBoundingClientRect();
+  return currentSlide.getBoundingClientRect();
+}
+
+function renderPointer() {
+  const marker = document.getElementById('pointer-marker');
+  if (!marker) return;
+  if (!pointerState.visible) {
+    marker.classList.remove('visible');
+    return;
+  }
+
+  const rect = getCurrentMediaRect();
+  const left = rect.left + rect.width * pointerState.x;
+  const top = rect.top + rect.height * pointerState.y;
+  marker.style.left = `${left}px`;
+  marker.style.top = `${top}px`;
+  marker.classList.add('visible');
+}
+
+function syncPointerFromPayload(payload) {
+  const newX = payload.pointer_x;
+  const newY = payload.pointer_y;
+  const newVisible = payload.pointer_visible;
+  if (typeof newX === 'number' && typeof newY === 'number') {
+    pointerState.x = Math.max(0, Math.min(1, newX));
+    pointerState.y = Math.max(0, Math.min(1, newY));
+  }
+  if (typeof newVisible === 'boolean') {
+    pointerState.visible = newVisible;
+  }
+  renderPointer();
+}
 
 function showError() {
   document.getElementById('loading').style.display = 'none';
@@ -235,11 +301,13 @@ function buildSlides(slidesData) {
       v.controls = false;
       v.loop = true;
       v.playsInline = true;
+      v.addEventListener('loadedmetadata', renderPointer);
       div.appendChild(v);
     } else {
       const img = document.createElement('img');
       img.src = s.arquivo_url;
       img.alt = `Slide ${i+1}`;
+      img.addEventListener('load', renderPointer);
       div.appendChild(img);
     }
 
@@ -262,6 +330,7 @@ function goToSlide(index, skipPause) {
   slides[currentIndex].classList.add('active');
 
   document.getElementById('hud-counter').textContent = `${currentIndex + 1} / ${slides.length}`;
+  window.requestAnimationFrame(renderPointer);
 }
 
 function handleAcao(acao, slideAtual) {
@@ -314,12 +383,13 @@ async function init() {
   // Busca estado atual
   const { data: ctrl } = await db
     .from('controle')
-    .select('slide_atual')
+    .select('slide_atual, pointer_x, pointer_y, pointer_visible')
     .eq('apresentacao_id', ap.id)
     .single();
 
   const startIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
   goToSlide(startIndex);
+  if (ctrl) syncPointerFromPayload(ctrl);
 
   // Remove loading
   const loadEl = document.getElementById('loading');
@@ -336,6 +406,7 @@ async function init() {
     }, payload => {
       const { slide_atual, acao } = payload.new;
       handleAcao(acao, slide_atual);
+      syncPointerFromPayload(payload.new);
     })
     .subscribe(status => {
       const dot = document.getElementById('realtime-dot');
@@ -363,10 +434,14 @@ async function init() {
       if (newSlides) {
         buildSlides(newSlides);
         goToSlide(0);
+        window.requestAnimationFrame(renderPointer);
       }
     })
     .subscribe();
 }
+
+window.addEventListener('resize', renderPointer);
+window.addEventListener('scroll', renderPointer, true);
 
 init();
 </script>
