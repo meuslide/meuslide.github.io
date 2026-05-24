@@ -434,7 +434,12 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function getCodigo() {
   const p = new URLSearchParams(location.search);
-  return (p.get('codigo') || '').toLowerCase();
+  const fromQuery = (p.get('codigo') || '').toLowerCase().trim();
+  if (fromQuery) return fromQuery;
+
+  const pathParts = location.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+  const pathCodigo = pathParts.length >= 1 ? pathParts[0] : '';
+  return pathCodigo.toLowerCase().trim();
 }
 function formatBytes(b) {
   if(b<1024) return b+' B';
