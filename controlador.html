@@ -410,7 +410,7 @@ async function initCtrl() {
   // Busca apresentação
   const { data: ap } = await db
     .from('apresentacoes')
-    .select('id, titulo')
+    .select('id, titulo, senha_hash')
     .eq('codigo', codigo)
     .single();
 
