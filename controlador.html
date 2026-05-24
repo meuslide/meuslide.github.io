@@ -383,6 +383,17 @@ body {
     <div class="slide-total" id="slide-total">de 1 slide</div>
   </div>
 
+  <div class="btn-row">
+    <button class="ctrl-btn btn-prev" id="btn-prev">
+      <span class="btn-icon">←</span>
+      <span class="btn-label">Anterior</span>
+    </button>
+    <button class="ctrl-btn btn-next" id="btn-next">
+      <span class="btn-icon">→</span>
+      <span class="btn-label">Próximo</span>
+    </button>
+  </div>
+
   <div class="pointer-panel">
     <div class="pointer-head">
       <div class="pointer-actions">
@@ -394,17 +405,6 @@ body {
     <div class="pointer-canvas" id="pointer-canvas" aria-label="Área de controle do ponteiro">
       <div class="pointer-dot" id="pointer-dot"></div>
     </div>
-  </div>
-
-  <div class="btn-row">
-    <button class="ctrl-btn btn-prev" id="btn-prev">
-      <span class="btn-icon">←</span>
-      <span class="btn-label">Anterior</span>
-    </button>
-    <button class="ctrl-btn btn-next" id="btn-next">
-      <span class="btn-icon">→</span>
-      <span class="btn-label">Próximo</span>
-    </button>
   </div>
   <div class="feedback" id="feedback"></div>
 
@@ -457,6 +457,12 @@ let sending = false;
 let pointerState = { x: 0.5, y: 0.5, visible: true };
 let pointerDirty = false;
 let pointerFrame = 0;
+let pointerTapStart = null;
+let pointerLastTapAt = 0;
+let pointerLastTapPos = null;
+
+const POINTER_DOUBLE_TAP_MS = 320;
+const POINTER_TAP_MOVE_PX = 10;
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, value));
@@ -517,6 +523,15 @@ function pointerEventToNorm(event) {
   };
 }
 
+function pointerNormToPixels(x, y) {
+  const canvas = document.getElementById('pointer-canvas');
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: clamp01(x) * rect.width,
+    y: clamp01(y) * rect.height
+  };
+}
+
 function updateThumb() {
   const wrap = document.getElementById('thumb-wrap');
   const s = slides[currentIndex];
@@ -561,7 +576,11 @@ async function sendAcao(acao, novoIndex) {
   } else {
     currentIndex = novoIndex;
     updateThumb();
-    flash(acao === 'proximo' ? '→ Próximo' : '← Anterior');
+    flash(
+      acao === 'proximo' ? '→ Próximo' :
+      acao === 'anterior' ? '← Anterior' :
+      '⏮ Primeiro'
+    );
   }
 
   sending = false;
@@ -665,9 +684,32 @@ async function doAuth(ap) {
     updateThumb();
 
     // Botões
-    document.getElementById('btn-prev').addEventListener('click', () => {
-      if (currentIndex > 0) sendAcao('anterior', currentIndex - 1);
+    const prevButton = document.getElementById('btn-prev');
+    let prevHoldTimer = null;
+    let prevHoldTriggered = false;
+
+    prevButton.addEventListener('pointerdown', () => {
+      prevHoldTriggered = false;
+      clearTimeout(prevHoldTimer);
+      prevHoldTimer = setTimeout(() => {
+        prevHoldTriggered = true;
+        if (currentIndex > 0) sendAcao('ir_para', 0);
+      }, 1500);
     });
+    prevButton.addEventListener('pointerup', () => {
+      clearTimeout(prevHoldTimer);
+      if (!prevHoldTriggered && currentIndex > 0) {
+        sendAcao('anterior', currentIndex - 1);
+      }
+    });
+    prevButton.addEventListener('pointerleave', () => {
+      clearTimeout(prevHoldTimer);
+    });
+    prevButton.addEventListener('pointercancel', () => {
+      clearTimeout(prevHoldTimer);
+    });
+    prevButton.addEventListener('contextmenu', event => event.preventDefault());
+
     document.getElementById('btn-next').addEventListener('click', () => {
       if (currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
       else flash('Último slide', false);
@@ -684,6 +726,13 @@ async function doAuth(ap) {
     const onPointerMove = event => {
       if (!dragging) return;
       const { x, y } = pointerEventToNorm(event);
+      if (pointerTapStart) {
+        const dx = event.clientX - pointerTapStart.x;
+        const dy = event.clientY - pointerTapStart.y;
+        if (Math.hypot(dx, dy) > POINTER_TAP_MOVE_PX) {
+          pointerTapStart.moved = true;
+        }
+      }
       updatePointer(x, y, true, true);
     };
 
@@ -691,6 +740,12 @@ async function doAuth(ap) {
     canvas.addEventListener('pointerdown', event => {
       dragging = true;
       canvas.setPointerCapture(event.pointerId);
+      pointerTapStart = {
+        x: event.clientX,
+        y: event.clientY,
+        time: Date.now(),
+        moved: false
+      };
       const { x, y } = pointerEventToNorm(event);
       updatePointer(x, y, true, true);
     });
@@ -698,9 +753,30 @@ async function doAuth(ap) {
     canvas.addEventListener('pointerup', event => {
       dragging = false;
       canvas.releasePointerCapture(event.pointerId);
+
+      if (pointerTapStart && !pointerTapStart.moved) {
+        const now = Date.now();
+        const isDoubleTap =
+          pointerLastTapAt &&
+          (now - pointerLastTapAt) <= POINTER_DOUBLE_TAP_MS &&
+          pointerLastTapPos &&
+          Math.hypot(pointerLastTapPos.x - event.clientX, pointerLastTapPos.y - event.clientY) <= POINTER_TAP_MOVE_PX;
+
+        if (isDoubleTap) {
+          updatePointer(pointerState.x, pointerState.y, !pointerState.visible, true);
+          pointerLastTapAt = 0;
+          pointerLastTapPos = null;
+        } else {
+          pointerLastTapAt = now;
+          pointerLastTapPos = { x: event.clientX, y: event.clientY };
+        }
+      }
+
+      pointerTapStart = null;
     });
     canvas.addEventListener('pointercancel', () => {
       dragging = false;
+      pointerTapStart = null;
     });
 
     if (toggleButton) {
