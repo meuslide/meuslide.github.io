@@ -274,6 +274,55 @@ body {
 }
 .pointer-dot:active { cursor:grabbing; }
 
+/* ── EFFECTS ── */
+.effects-panel {
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:18px;
+}
+.effects-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.effects-title {
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.8rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  opacity:0.8;
+}
+.effects-sub {
+  font-size:0.75rem;
+  opacity:0.45;
+}
+.effects-grid {
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:10px;
+}
+.effect-btn {
+  padding:14px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:white;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.78rem;
+  letter-spacing:0.05em;
+  cursor:pointer;
+  transition:transform 0.15s, background 0.15s;
+}
+.effect-btn:hover { background:rgba(255,255,255,0.11); }
+.effect-btn:active { transform:scale(0.97); }
+.effect-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+
 /* ── BUTTONS ── */
 .btn-row {
   display:grid;
@@ -406,6 +455,20 @@ body {
       <div class="pointer-dot" id="pointer-dot"></div>
     </div>
   </div>
+
+  <div class="effects-panel">
+    <div class="effects-head">
+      <div>
+        <div class="effects-title">Efeitos</div>
+        <div class="effects-sub">Dispara na apresentação em tempo real</div>
+      </div>
+    </div>
+    <div class="effects-grid">
+      <button class="effect-btn" id="btn-effect-festa" type="button">🎉 Festa</button>
+      <button class="effect-btn" id="btn-effect-coracoes" type="button">💖 Corações</button>
+      <button class="effect-btn" id="btn-effect-baloes" type="button">🎈 Balões</button>
+    </div>
+  </div>
   <div class="feedback" id="feedback"></div>
 
   <div class="ctrl-footer">
@@ -465,6 +528,7 @@ let pointerFrame = 0;
 let pointerTapStart = null;
 let pointerLastTapAt = 0;
 let pointerLastTapPos = null;
+let effectSending = false;
 
 const POINTER_DOUBLE_TAP_MS = 320;
 const POINTER_TAP_MOVE_PX = 10;
@@ -537,6 +601,13 @@ function pointerNormToPixels(x, y) {
   };
 }
 
+function setEffectButtonsDisabled(disabled) {
+  ['btn-effect-festa', 'btn-effect-coracoes', 'btn-effect-baloes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disabled;
+  });
+}
+
 function updateThumb() {
   const wrap = document.getElementById('thumb-wrap');
   const s = slides[currentIndex];
@@ -591,6 +662,30 @@ async function sendAcao(acao, novoIndex) {
   sending = false;
   document.getElementById('btn-prev').disabled = false;
   document.getElementById('btn-next').disabled = false;
+}
+
+async function sendEfeito(efeito) {
+  if (effectSending || !apresentacao) return;
+  effectSending = true;
+  setEffectButtonsDisabled(true);
+
+  const { error } = await db
+    .from('controle')
+    .update({
+      efeito,
+      efeito_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('apresentacao_id', apresentacao.id);
+
+  if (error) {
+    flash('Erro ao disparar efeito', true);
+  } else {
+    flash(efeito === 'festa' ? '🎉 Festa' : efeito === 'coracoes' ? '💖 Corações' : '🎈 Balões');
+  }
+
+  effectSending = false;
+  setEffectButtonsDisabled(false);
 }
 
 async function initCtrl() {
@@ -728,6 +823,9 @@ async function doAuth(ap) {
 
     const canvas = document.getElementById('pointer-canvas');
     const toggleButton = document.getElementById('pointer-toggle');
+    const effectFesta = document.getElementById('btn-effect-festa');
+    const effectCoracoes = document.getElementById('btn-effect-coracoes');
+    const effectBaloes = document.getElementById('btn-effect-baloes');
     const onPointerMove = event => {
       if (!dragging) return;
       const { x, y } = pointerEventToNorm(event);
@@ -790,6 +888,10 @@ async function doAuth(ap) {
       });
     }
 
+    if (effectFesta) effectFesta.addEventListener('click', () => sendEfeito('festa'));
+    if (effectCoracoes) effectCoracoes.addEventListener('click', () => sendEfeito('coracoes'));
+    if (effectBaloes) effectBaloes.addEventListener('click', () => sendEfeito('baloes'));
+
     // Realtime: sync se outro controlador mudar
     db.channel(`ctrl-sync-${ap.id}`)
       .on('postgres_changes', {
@@ -808,6 +910,8 @@ async function doAuth(ap) {
         }
       })
       .subscribe();
+
+    setEffectButtonsDisabled(false);
   } catch (error) {
     errorEl.textContent = 'Não foi possível autenticar agora. Tente novamente.';
     errorEl.classList.add('visible');

@@ -76,6 +76,48 @@ body {
   opacity:1;
 }
 
+/* ── EFFECTS ── */
+#effect-layer {
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:25;
+  overflow:hidden;
+}
+.balloon-effect {
+  position:absolute;
+  border-radius:50% 50% 46% 46%;
+  box-shadow: inset -8px -10px 0 rgba(0,0,0,0.12);
+  opacity:0;
+  animation: balloon-float 5.8s ease-in forwards;
+}
+.balloon-effect::before {
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:-24px;
+  width:1px;
+  height:28px;
+  background:rgba(255,255,255,0.45);
+  transform:translateX(-50%);
+}
+.balloon-effect::after {
+  content:'';
+  position:absolute;
+  top:12px;
+  left:50%;
+  width:8px;
+  height:8px;
+  background:rgba(255,255,255,0.26);
+  border-radius:50%;
+  transform:translateX(-50%);
+}
+@keyframes balloon-float {
+  0% { transform:translate3d(0, 0, 0) scale(0.8) rotate(-2deg); opacity:0; }
+  12% { opacity:1; }
+  100% { transform:translate3d(var(--drift), -120vh, 0) scale(1.05) rotate(4deg); opacity:0; }
+}
+
 /* ── HUD ── */
 #hud {
   position:fixed;
@@ -212,6 +254,8 @@ body:hover #hud { opacity:1; }
   <div class="pointer-marker" id="pointer-marker"></div>
 </div>
 
+<div id="effect-layer"></div>
+
 <div id="hud">
   <div class="slide-counter" id="hud-counter">1 / 1</div>
   <div class="hud-title" id="hud-title"></div>
@@ -220,6 +264,7 @@ body:hover #hud { opacity:1; }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
 <script>
 // ══════════════════════════════════════
 //  ⚙️  CONFIGURE AQUI
@@ -241,6 +286,7 @@ let slides = [];
 let currentIndex = 0;
 let apresentacaoId = null;
 let pointerState = { x: 0.5, y: 0.5, visible: false };
+let lastEffectStamp = null;
 
 function getCurrentMediaRect() {
   const currentSlide = slides[currentIndex];
@@ -278,6 +324,69 @@ function syncPointerFromPayload(payload) {
     pointerState.visible = newVisible;
   }
   renderPointer();
+}
+
+function clearEffectLayer() {
+  const layer = document.getElementById('effect-layer');
+  if (layer) layer.innerHTML = '';
+}
+
+function fireFesta() {
+  if (!window.confetti) return;
+  const duration = 1400;
+  const end = Date.now() + duration;
+  const colors = ['#e84d2a', '#2a6ee8', '#1a9e5c', '#f5f3ee', '#ffd166'];
+  (function frame() {
+    window.confetti({ particleCount: 8, angle: 60, spread: 60, origin: { x: 0 }, colors, disableForReducedMotion: true });
+    window.confetti({ particleCount: 8, angle: 120, spread: 60, origin: { x: 1 }, colors, disableForReducedMotion: true });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  }());
+}
+
+function fireCoracoes() {
+  if (!window.confetti) return;
+  const heart = window.confetti.shapeFromText({ text: '💖', scalar: 2.2, color: '#ff4d8d' });
+  const end = Date.now() + 1200;
+  (function frame() {
+    window.confetti({
+      particleCount: 10,
+      spread: 85,
+      startVelocity: 28,
+      origin: { y: 0.75 },
+      shapes: [heart],
+      scalar: 1.2,
+      colors: ['#ff4d8d'],
+      disableForReducedMotion: true
+    });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  }());
+}
+
+function fireBaloes() {
+  const layer = document.getElementById('effect-layer');
+  if (!layer) return;
+  const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#1dd1a1', '#5f27cd', '#ff9ff3'];
+  for (let i = 0; i < 8; i += 1) {
+    const balloon = document.createElement('div');
+    balloon.className = 'balloon-effect';
+    const size = 34 + Math.random() * 18;
+    balloon.style.left = `${8 + Math.random() * 84}%`;
+    balloon.style.bottom = `${-10 - Math.random() * 18}%`;
+    balloon.style.width = `${size}px`;
+    balloon.style.height = `${size * 1.25}px`;
+    balloon.style.background = colors[i % colors.length];
+    balloon.style.animationDelay = `${Math.random() * 0.6}s`;
+    balloon.style.setProperty('--drift', `${-20 + Math.random() * 40}px`);
+    layer.appendChild(balloon);
+    balloon.addEventListener('animationend', () => balloon.remove());
+  }
+  setTimeout(clearEffectLayer, 6000);
+}
+
+function triggerEffect(efeito) {
+  if (efeito === 'festa') fireFesta();
+  if (efeito === 'coracoes') fireCoracoes();
+  if (efeito === 'baloes') fireBaloes();
 }
 
 function showError() {
@@ -383,13 +492,14 @@ async function init() {
   // Busca estado atual
   const { data: ctrl } = await db
     .from('controle')
-    .select('slide_atual, pointer_x, pointer_y, pointer_visible')
+    .select('slide_atual, pointer_x, pointer_y, pointer_visible, efeito, efeito_updated_at')
     .eq('apresentacao_id', ap.id)
     .single();
 
   const startIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
   goToSlide(startIndex);
   if (ctrl) syncPointerFromPayload(ctrl);
+  if (ctrl) lastEffectStamp = ctrl.efeito_updated_at || null;
 
   // Remove loading
   const loadEl = document.getElementById('loading');
@@ -407,6 +517,12 @@ async function init() {
       const { slide_atual, acao } = payload.new;
       handleAcao(acao, slide_atual);
       syncPointerFromPayload(payload.new);
+      const effectStamp = payload.new.efeito_updated_at || null;
+      const effectType = payload.new.efeito;
+      if (effectType && effectType !== 'none' && effectStamp && effectStamp !== lastEffectStamp) {
+        lastEffectStamp = effectStamp;
+        triggerEffect(effectType);
+      }
     })
     .subscribe(status => {
       const dot = document.getElementById('realtime-dot');
