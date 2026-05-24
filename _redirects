@@ -1,3 +1,4 @@
 /:codigo/controlador   /controlador.html?codigo=:codigo   200
+/:codigo/slides        /apresentacao.html?codigo=:codigo  200
 /:codigo/gerenciar     /gerenciador.html?codigo=:codigo   200
 /:codigo               /index.html?codigo=:codigo         200
