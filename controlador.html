@@ -209,6 +209,11 @@ body {
   gap:12px;
   margin-bottom:12px;
 }
+.pointer-actions {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
 .pointer-title {
   font-family:'Syne',sans-serif;
   font-weight:700;
@@ -221,6 +226,20 @@ body {
   font-size:0.75rem;
   opacity:0.45;
 }
+.pointer-toggle {
+  padding:7px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.14);
+  background:rgba(255,255,255,0.06);
+  color:white;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.7rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.pointer-toggle:hover { background:rgba(255,255,255,0.1); }
 .pointer-canvas {
   position:relative;
   width:100%;
@@ -366,8 +385,11 @@ body {
 
   <div class="pointer-panel">
     <div class="pointer-head">
-      <div class="pointer-title">Ponteiro</div>
-      <div class="pointer-state" id="pointer-state">arraste a bolinha</div>
+      <div class="pointer-actions">
+        <div class="pointer-title">Ponteiro</div>
+        <button class="pointer-toggle" id="pointer-toggle" type="button">Ocultar</button>
+      </div>
+      <div class="pointer-state" id="pointer-state">mostrando</div>
     </div>
     <div class="pointer-canvas" id="pointer-canvas" aria-label="Área de controle do ponteiro">
       <div class="pointer-dot" id="pointer-dot"></div>
@@ -452,6 +474,11 @@ function setPointerStateLabel(text) {
   if (el) el.textContent = text;
 }
 
+function setPointerToggleLabel(visible) {
+  const btn = document.getElementById('pointer-toggle');
+  if (btn) btn.textContent = visible ? 'Ocultar' : 'Mostrar';
+}
+
 function schedulePointerSync() {
   if (pointerFrame) return;
   pointerFrame = window.requestAnimationFrame(async () => {
@@ -473,9 +500,8 @@ function schedulePointerSync() {
 function updatePointer(x, y, visible = true, sync = true) {
   pointerState = { x: clamp01(x), y: clamp01(y), visible };
   setPointerDotPosition(pointerState.x, pointerState.y);
-  const dot = document.getElementById('pointer-dot');
-  if (dot) dot.style.opacity = visible ? '1' : '0';
-  setPointerStateLabel(visible ? 'ao vivo' : 'oculto');
+  setPointerStateLabel(visible ? 'mostrando' : 'oculto');
+  setPointerToggleLabel(visible);
   if (sync) {
     pointerDirty = true;
     schedulePointerSync();
@@ -622,10 +648,10 @@ async function doAuth(ap) {
 
     // Pega estado atual
     const { data: ctrl } = await db
-      .from('controle')
-      .select('slide_atual')
-      .eq('apresentacao_id', ap.id)
-      .single();
+        .from('controle')
+        .select('slide_atual, pointer_x, pointer_y, pointer_visible')
+        .eq('apresentacao_id', ap.id)
+        .single();
 
     currentIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
 
@@ -654,6 +680,7 @@ async function doAuth(ap) {
     });
 
     const canvas = document.getElementById('pointer-canvas');
+    const toggleButton = document.getElementById('pointer-toggle');
     const onPointerMove = event => {
       if (!dragging) return;
       const { x, y } = pointerEventToNorm(event);
@@ -675,6 +702,12 @@ async function doAuth(ap) {
     canvas.addEventListener('pointercancel', () => {
       dragging = false;
     });
+
+    if (toggleButton) {
+      toggleButton.addEventListener('click', () => {
+        updatePointer(pointerState.x, pointerState.y, !pointerState.visible, true);
+      });
+    }
 
     // Realtime: sync se outro controlador mudar
     db.channel(`ctrl-sync-${ap.id}`)
