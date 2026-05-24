@@ -282,7 +282,7 @@ body {
   <p class="auth-sub">Insira a senha para controlar os slides.</p>
   <div class="auth-field">
     <input type="password" id="input-senha" placeholder="Senha da apresentação" autocomplete="current-password">
-    <button id="btn-auth">Entrar</button>
+    <button id="btn-auth" type="button">Entrar</button>
   </div>
   <p class="auth-error" id="auth-error">Senha incorreta. Tente novamente.</p>
 </div>
@@ -421,10 +421,9 @@ async function initCtrl() {
     return;
   }
 
-  let auth_titulo = document.getElementById('auth-titulo');
-
-  if(auth_titulo != null){
-    auth_titulo.textContent = ap.titulo || codigo;
+  const authTitulo = document.getElementById('auth-titulo');
+  if (authTitulo) {
+    authTitulo.textContent = ap.titulo || codigo;
   }
 
   document.getElementById('auth-codigo').textContent = codigo;
@@ -439,86 +438,91 @@ async function initCtrl() {
 
 async function doAuth(ap) {
   const senha = document.getElementById('input-senha').value;
-  if (!senha) return;
+  const btn = document.getElementById('btn-auth');
+  const errorEl = document.getElementById('auth-error');
 
-  document.getElementById('btn-auth').textContent = '...';
-
-  const hash = await hashSenha(senha);
-
-  const { data: apFull } = await db
-    .from('apresentacoes')
-    .select('senha_hash')
-    .eq('id', ap.id)
-    .single();
-
-  console.log('hash gerado:', hash);
-  console.log('hash do banco:', ap.senha_hash);
-  console.log('batem?', hash === ap.senha_hash);
-
-  if (!apFull || apFull.senha_hash !== hash) {
-    document.getElementById('auth-error').classList.add('visible');
-    document.getElementById('btn-auth').textContent = 'Entrar';
+  errorEl.classList.remove('visible');
+  if (!senha) {
+    errorEl.textContent = 'Digite a senha para continuar.';
+    errorEl.classList.add('visible');
     return;
   }
 
-  console.log('autenticado, carregando slides...');
+  btn.disabled = true;
+  btn.textContent = '...';
 
-  // Autenticado
-  apresentacao = ap;
-  document.getElementById('ctrl-titulo').textContent = ap.titulo || codigo;
-  document.getElementById('ctrl-codigo').textContent = codigo;
+  try {
+    const hash = await hashSenha(senha);
 
-  // Carrega slides
-  const { data: slidesData } = await db
-    .from('slides')
-    .select('*')
-    .eq('apresentacao_id', ap.id)
-    .order('ordem');
+    if (hash !== ap.senha_hash) {
+      errorEl.textContent = 'Senha incorreta. Tente novamente.';
+      errorEl.classList.add('visible');
+      return;
+    }
 
-  slides = slidesData || [];
+    // Autenticado
+    apresentacao = ap;
+    document.getElementById('ctrl-titulo').textContent = ap.titulo || codigo;
+    document.getElementById('ctrl-codigo').textContent = codigo;
 
-  // Pega estado atual
-  const { data: ctrl } = await db
-    .from('controle')
-    .select('slide_atual')
-    .eq('apresentacao_id', ap.id)
-    .single();
+    // Carrega slides
+    const { data: slidesData } = await db
+      .from('slides')
+      .select('*')
+      .eq('apresentacao_id', ap.id)
+      .order('ordem');
 
-  currentIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
+    slides = slidesData || [];
 
-  show('state-ctrl');
-  updateThumb();
+    // Pega estado atual
+    const { data: ctrl } = await db
+      .from('controle')
+      .select('slide_atual')
+      .eq('apresentacao_id', ap.id)
+      .single();
 
-  // Botões
-  document.getElementById('btn-prev').addEventListener('click', () => {
-    if (currentIndex > 0) sendAcao('anterior', currentIndex - 1);
-  });
-  document.getElementById('btn-next').addEventListener('click', () => {
-    if (currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
-    else flash('Último slide', false);
-  });
+    currentIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
 
-  // Teclado
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft' && currentIndex > 0) sendAcao('anterior', currentIndex - 1);
-    if (e.key === 'ArrowRight' && currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
-  });
+    show('state-ctrl');
+    updateThumb();
 
-  // Realtime: sync se outro controlador mudar
-  db.channel(`ctrl-sync-${ap.id}`)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'controle',
-      filter: `apresentacao_id=eq.${ap.id}`
-    }, payload => {
-      const ni = payload.new.slide_atual;
-      if (ni !== currentIndex) {
-        currentIndex = ni;
-        updateThumb();
-      }
-    })
-    .subscribe();
+    // Botões
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentIndex > 0) sendAcao('anterior', currentIndex - 1);
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      if (currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
+      else flash('Último slide', false);
+    });
+
+    // Teclado
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' && currentIndex > 0) sendAcao('anterior', currentIndex - 1);
+      if (e.key === 'ArrowRight' && currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
+    });
+
+    // Realtime: sync se outro controlador mudar
+    db.channel(`ctrl-sync-${ap.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'controle',
+        filter: `apresentacao_id=eq.${ap.id}`
+      }, payload => {
+        const ni = payload.new.slide_atual;
+        if (ni !== currentIndex) {
+          currentIndex = ni;
+          updateThumb();
+        }
+      })
+      .subscribe();
+  } catch (error) {
+    errorEl.textContent = 'Não foi possível autenticar agora. Tente novamente.';
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
 }
 
 initCtrl().catch(() => show('state-auth'));
