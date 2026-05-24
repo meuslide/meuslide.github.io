@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlideShow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0a0a0f;
+  --paper: #f5f3ee;
+  --accent: #e84d2a;
+  --accent2: #2a6ee8;
+  --muted: #8a8880;
+  --border: #ddd9d0;
+  --success: #1a9e5c;
+  --error: #e84d2a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+header {
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.logo span { color: var(--accent); }
+.codigo-badge {
+  margin-left: auto;
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 4px 12px;
+  border-radius: 100px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── MAIN ── */
+main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+/* ── LOADING STATE ── */
+#state-loading {
+  text-align: center;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 2px solid var(--border);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.9rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── CARD COMUM ── */
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 48px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.8rem;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+.card-subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 36px;
+  line-height: 1.5;
+}
+
+/* ── FORM ── */
+.field {
+  margin-bottom: 20px;
+}
+label {
+  display: block;
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus {
+  border-color: var(--ink);
+  background: white;
+}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--paper);
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(232, 77, 42, 0.03);
+}
+.upload-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.upload-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  display: block;
+}
+.upload-text {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.upload-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ── FILE LIST ── */
+#file-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+.file-item .file-num {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+  background: var(--ink);
+  color: var(--paper);
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.file-item .file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.file-item .file-size {
+  color: var(--muted);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+/* ── PROGRESS ── */
+.progress-wrap {
+  margin-top: 20px;
+  display: none;
+}
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.progress-bar-bg {
+  background: var(--border);
+  border-radius: 100px;
+  height: 6px;
+  overflow: hidden;
+}
+.progress-bar {
+  background: var(--accent);
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* ── BTN ── */
+.btn {
+  width: 100%;
+  padding: 15px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn-primary:hover { background: #1a1a25; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-accent {
+  background: var(--accent);
+  color: white;
+}
+.btn-accent:hover { background: #d03e1e; transform: translateY(-1px); }
+.btn-outline {
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--border);
+  margin-top: 12px;
+}
+.btn-outline:hover { border-color: var(--ink); }
+
+/* ── ALERT ── */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 20px;
+  display: none;
+  line-height: 1.4;
+}
+.alert-error { background: rgba(232,77,42,0.08); color: var(--error); border: 1px solid rgba(232,77,42,0.2); }
+.alert-success { background: rgba(26,158,92,0.08); color: var(--success); border: 1px solid rgba(26,158,92,0.2); }
+
+/* ── EXISTING PRESENTATION VIEW ── */
+#state-exists .card-title { font-size: 2.2rem; }
+.presenter-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.link-row .link-icon { font-size: 1.2rem; }
+.link-row .link-info { flex: 1; }
+.link-row .link-label {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.link-row .link-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.link-row .link-btn {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+.link-row .link-btn:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 28px 0;
+}
+
+/* ── HIDDEN ── */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="." class="logo">Slide<span>Show</span></a>
+  <span class="codigo-badge" id="header-codigo"></span>
+</header>
+
+<main>
+  <!-- LOADING -->
+  <div id="state-loading">
+    <div class="spinner"></div>
+    <p class="loading-text">Verificando apresentação...</p>
+  </div>
+
+  <!-- APRESENTAÇÃO EXISTE -->
+  <div id="state-exists" class="hidden">
+    <div class="card">
+      <div class="card-title" id="exists-titulo">Apresentação</div>
+      <p class="card-subtitle">Esta apresentação já existe. Escolha o que deseja fazer:</p>
+      <div class="presenter-links">
+        <div class="link-row">
+          <span class="link-icon">🖥️</span>
+          <div class="link-info">
+            <div class="link-label">Ver Slides</div>
+            <div class="link-desc">Modo público — sincronizado em tempo real</div>
+          </div>
+          <a id="link-apresentacao" href="#" class="link-btn">Abrir →</a>
+        </div>
+        <div class="link-row">
+          <span class="link-icon">🎮</span>
+          <div class="link-info">
+            <div class="link-label">Controlador</div>
+            <div class="link-desc">Avançar e voltar slides (requer senha)</div>
+          </div>
+          <a id="link-controlador" href="#" class="link-btn">Abrir →</a>
+        </div>
+        <div class="link-row">
+          <span class="link-icon">⚙️</span>
+          <div class="link-info">
+            <div class="link-label">Gerenciar</div>
+            <div class="link-desc">Adicionar, reordenar e remover slides</div>
+          </div>
+          <a id="link-gerenciar" href="#" class="link-btn">Abrir →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CADASTRO -->
+  <div id="state-new" class="hidden">
+    <div class="card">
+      <div class="card-title">Nova<br>Apresentação</div>
+      <p class="card-subtitle">Código <strong id="new-codigo-display"></strong> disponível. Configure sua apresentação abaixo.</p>
+
+      <div class="alert alert-error" id="alert-new"></div>
+
+      <div class="field">
+        <label>Título da apresentação</label>
+        <input type="text" id="input-titulo" placeholder="Ex: Seminário de Geografia" maxlength="80">
+      </div>
+      <div class="field">
+        <label>Senha de controle</label>
+        <input type="password" id="input-senha" placeholder="Mínimo 4 caracteres">
+      </div>
+      <div class="field">
+        <label>Confirmar senha</label>
+        <input type="password" id="input-senha2" placeholder="Repita a senha">
+      </div>
+      <div class="field">
+        <label>Slides (imagens ou vídeos)</label>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" multiple accept="image/*,video/*">
+          <span class="upload-icon">📁</span>
+          <div class="upload-text">Clique ou arraste os arquivos aqui</div>
+          <div class="upload-hint">PNG, JPG, MP4, WebM · A ordem de seleção define a sequência</div>
+        </div>
+        <div id="file-list"></div>
+      </div>
+
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-label">
+          <span>Enviando slides...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-criar" style="margin-top:24px">
+        Criar Apresentação
+      </button>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ══════════════════════════════════════
+//  ⚙️  CONFIGURE AQUI
+// ══════════════════════════════════════
+const SUPABASE_URL = 'https://mamhiknpgqbzszmloibk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_99_Zxj_XydCC8x7cAaKmpA_hbEgebR0';
+// ══════════════════════════════════════
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Pega o código da URL: ?codigo=xxx ou path /{codigo}
+function getCodigo() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('codigo')) return params.get('codigo').toLowerCase().trim();
+  const path = location.pathname.replace(/^\//, '').split('/')[0];
+  return path || null;
+}
+
+async function hashSenha(senha) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(senha));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function show(id) {
+  ['state-loading','state-exists','state-new'].forEach(s => {
+    document.getElementById(s).classList.toggle('hidden', s !== id);
+  });
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(0) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+const codigo = getCodigo();
+document.getElementById('header-codigo').textContent = codigo || '—';
+
+async function init() {
+  if (!codigo) { show('state-new'); return; }
+
+  const { data, error } = await db
+    .from('apresentacoes')
+    .select('id, titulo')
+    .eq('codigo', codigo)
+    .single();
+
+  if (data) {
+    // Apresentação existe
+    document.getElementById('exists-titulo').textContent = data.titulo || codigo;
+    const base = location.origin;
+    const q = `?codigo=${codigo}`;
+    document.getElementById('link-apresentacao').href = `apresentacao.html${q}`;
+    document.getElementById('link-controlador').href = `controlador.html${q}`;
+    document.getElementById('link-gerenciar').href = `gerenciador.html${q}`;
+    show('state-exists');
+  } else {
+    // Nova
+    document.getElementById('new-codigo-display').textContent = codigo;
+    show('state-new');
+  }
+}
+
+// ── Upload de arquivos ──
+let selectedFiles = [];
+
+document.getElementById('file-input').addEventListener('change', e => {
+  selectedFiles = Array.from(e.target.files);
+  renderFileList();
+});
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('dragover');
+  selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+  renderFileList();
+});
+
+function renderFileList() {
+  const list = document.getElementById('file-list');
+  list.innerHTML = '';
+  selectedFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'file-item';
+    div.innerHTML = `
+      <div class="file-num">${i+1}</div>
+      <div class="file-name">${f.name}</div>
+      <div class="file-size">${formatBytes(f.size)}</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+// ── Criar apresentação ──
+document.getElementById('btn-criar').addEventListener('click', async () => {
+  const alertEl = document.getElementById('alert-new');
+  const showError = msg => { alertEl.textContent = msg; alertEl.style.display = 'block'; alertEl.className = 'alert alert-error'; };
+  alertEl.style.display = 'none';
+
+  const titulo = document.getElementById('input-titulo').value.trim();
+  const senha = document.getElementById('input-senha').value;
+  const senha2 = document.getElementById('input-senha2').value;
+
+  if (!titulo) return showError('Insira um título para a apresentação.');
+  if (senha.length < 4) return showError('A senha deve ter pelo menos 4 caracteres.');
+  if (senha !== senha2) return showError('As senhas não coincidem.');
+  if (selectedFiles.length === 0) return showError('Selecione pelo menos um slide.');
+
+  const btn = document.getElementById('btn-criar');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+
+  const senhaHash = await hashSenha(senha);
+
+  // 1. Cria apresentação
+  const { data: ap, error: apErr } = await db
+    .from('apresentacoes')
+    .insert({ codigo, titulo, senha_hash: senhaHash })
+    .select()
+    .single();
+
+  if (apErr) {
+    btn.disabled = false; btn.textContent = 'Criar Apresentação';
+    return showError('Erro ao criar apresentação: ' + apErr.message);
+  }
+
+  // 2. Upload dos slides
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressBar = document.getElementById('progress-bar');
+  const progressPct = document.getElementById('progress-pct');
+  progressWrap.style.display = 'block';
+
+  const slidesInsert = [];
+
+  for (let i = 0; i < selectedFiles.length; i++) {
+    const f = selectedFiles[i];
+    const ext = f.name.split('.').pop();
+    const path = `${ap.id}/${Date.now()}_${i}.${ext}`;
+
+    const { error: upErr } = await db.storage.from('slides').upload(path, f);
+    if (upErr) {
+      return showError(`Erro ao enviar ${f.name}: ${upErr.message}`);
+    }
+
+    const { data: urlData } = db.storage.from('slides').getPublicUrl(path);
+    const tipo = f.type.startsWith('video/') ? 'video' : 'imagem';
+    slidesInsert.push({
+      apresentacao_id: ap.id,
+      arquivo_url: urlData.publicUrl,
+      arquivo_nome: f.name,
+      tipo,
+      ordem: i
+    });
+
+    const pct = Math.round(((i+1) / selectedFiles.length) * 100);
+    progressBar.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+  }
+
+  // 3. Insere slides no banco
+  await db.from('slides').insert(slidesInsert);
+
+  // 4. Cria registro de controle
+  await db.from('controle').insert({ apresentacao_id: ap.id, slide_atual: 0, acao: 'init' });
+
+  alertEl.textContent = '✓ Apresentação criada com sucesso! Redirecionando...';
+  alertEl.className = 'alert alert-success';
+  alertEl.style.display = 'block';
+
+  setTimeout(() => {
+    location.href = `apresentacao.html?codigo=${codigo}`;
+  }, 1500);
+});
+
+init();
+</script>
+</body>
+</html>

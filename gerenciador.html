@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerenciador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#0a0a0f;
+  --paper:#f5f3ee;
+  --accent:#e84d2a;
+  --muted:#8a8880;
+  --border:#ddd9d0;
+  --success:#1a9e5c;
+  --white:#ffffff;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body {
+  font-family:'DM Sans',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100vh;
+}
+
+/* ── HEADER ── */
+header {
+  position:sticky;
+  top:0;
+  background:rgba(245,243,238,0.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:16px 32px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  z-index:100;
+}
+.logo {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:1.2rem;
+  letter-spacing:-0.03em;
+  color:var(--ink);
+  text-decoration:none;
+}
+.logo span { color:var(--accent); }
+.page-title {
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.75rem;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+  padding-left:16px;
+  border-left:1px solid var(--border);
+}
+.codigo-tag {
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.75rem;
+  background:var(--ink);
+  color:var(--paper);
+  padding:4px 12px;
+  border-radius:100px;
+  letter-spacing:0.05em;
+}
+.header-actions {
+  margin-left:auto;
+  display:flex;
+  gap:10px;
+}
+.hbtn {
+  padding:8px 16px;
+  border-radius:8px;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.75rem;
+  letter-spacing:0.05em;
+  text-transform:uppercase;
+  cursor:pointer;
+  text-decoration:none;
+  transition:all 0.2s;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.hbtn-outline {
+  background:transparent;
+  border:1.5px solid var(--border);
+  color:var(--ink);
+}
+.hbtn-outline:hover { border-color:var(--ink); }
+.hbtn-primary {
+  background:var(--ink);
+  border:1.5px solid var(--ink);
+  color:var(--paper);
+}
+.hbtn-primary:hover { background:#1a1a25; }
+
+/* ── AUTH OVERLAY ── */
+#auth-overlay {
+  position:fixed;
+  inset:0;
+  background:var(--paper);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:200;
+  padding:20px;
+}
+.auth-card {
+  background:white;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:40px;
+  max-width:400px;
+  width:100%;
+  box-shadow:0 4px 24px rgba(0,0,0,0.08);
+}
+.auth-card h2 {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:1.6rem;
+  letter-spacing:-0.04em;
+  margin-bottom:6px;
+}
+.auth-card p {
+  font-size:0.85rem;
+  color:var(--muted);
+  margin-bottom:28px;
+  line-height:1.5;
+}
+.field { margin-bottom:18px; }
+.field label {
+  display:block;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.72rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:7px;
+}
+.field input {
+  width:100%;
+  padding:12px 16px;
+  border:1.5px solid var(--border);
+  border-radius:10px;
+  font-family:'DM Sans',sans-serif;
+  font-size:1rem;
+  color:var(--ink);
+  background:var(--paper);
+  outline:none;
+  transition:border-color 0.2s;
+}
+.field input:focus { border-color:var(--ink); background:white; }
+.auth-error {
+  font-size:0.82rem;
+  color:var(--accent);
+  margin-bottom:14px;
+  min-height:20px;
+}
+.btn-full {
+  width:100%;
+  padding:14px;
+  background:var(--ink);
+  color:var(--paper);
+  border:none;
+  border-radius:10px;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.9rem;
+  letter-spacing:0.03em;
+  cursor:pointer;
+  transition:background 0.2s;
+}
+.btn-full:hover { background:#1a1a25; }
+.btn-full:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* ── MAIN ── */
+main {
+  max-width:900px;
+  margin:0 auto;
+  padding:40px 32px;
+}
+
+/* ── UPLOAD SECTION ── */
+.section-title {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:1.1rem;
+  letter-spacing:-0.02em;
+  margin-bottom:4px;
+}
+.section-sub {
+  font-size:0.85rem;
+  color:var(--muted);
+  margin-bottom:20px;
+}
+.upload-zone {
+  border:2px dashed var(--border);
+  border-radius:14px;
+  padding:28px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.2s;
+  background:white;
+  position:relative;
+  margin-bottom:32px;
+}
+.upload-zone:hover,.upload-zone.drag { border-color:var(--accent); background:rgba(232,77,42,0.02); }
+.upload-zone input {
+  position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;
+}
+.upload-icon { font-size:1.8rem; display:block; margin-bottom:10px; }
+.upload-text { font-family:'Syne',sans-serif; font-weight:700; font-size:0.9rem; margin-bottom:4px; }
+.upload-hint { font-size:0.8rem; color:var(--muted); }
+
+/* ── QUEUE ── */
+#queue { margin-bottom:20px; display:flex; flex-direction:column; gap:8px; }
+.queue-item {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 14px;
+  background:white; border:1px solid var(--border); border-radius:10px;
+}
+.queue-num {
+  font-family:'Syne',sans-serif; font-weight:700; font-size:0.7rem;
+  background:var(--ink); color:var(--paper);
+  width:22px; height:22px; border-radius:6px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.queue-name { flex:1; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.queue-size { font-size:0.78rem; color:var(--muted); flex-shrink:0; }
+.queue-rm {
+  background:none; border:none; cursor:pointer;
+  color:var(--muted); font-size:1rem; padding:2px 6px;
+  border-radius:4px; transition:all 0.15s; flex-shrink:0;
+}
+.queue-rm:hover { color:var(--accent); background:rgba(232,77,42,0.08); }
+
+/* ── PROGRESS ── */
+.progress-wrap { margin-bottom:20px; display:none; }
+.progress-label {
+  display:flex; justify-content:space-between;
+  font-family:'Syne',sans-serif; font-weight:700;
+  font-size:0.72rem; letter-spacing:0.07em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:8px;
+}
+.progress-bg { background:var(--border); border-radius:100px; height:5px; overflow:hidden; }
+.progress-fill {
+  background:var(--accent); height:100%; border-radius:100px;
+  transition:width 0.3s ease; width:0%;
+}
+.btn-upload {
+  padding:13px 28px;
+  background:var(--accent); color:white;
+  border:none; border-radius:10px;
+  font-family:'Syne',sans-serif; font-weight:700;
+  font-size:0.85rem; letter-spacing:0.03em;
+  cursor:pointer; transition:background 0.2s;
+}
+.btn-upload:hover { background:#d03e1e; }
+.btn-upload:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* ── DIVIDER ── */
+hr { border:none; border-top:1px solid var(--border); margin:40px 0; }
+
+/* ── SLIDES GRID ── */
+#slides-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:16px;
+  margin-top:8px;
+}
+.slide-card {
+  background:white;
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  transition:all 0.2s;
+  cursor:grab;
+  position:relative;
+  user-select:none;
+}
+.slide-card:hover { border-color:#aaa; box-shadow:0 4px 16px rgba(0,0,0,0.08); }
+.slide-card.dragging {
+  opacity:0.4;
+  border-style:dashed;
+  border-color:var(--accent);
+  cursor:grabbing;
+}
+.slide-card.drag-over { border-color:var(--accent2); box-shadow:0 0 0 3px rgba(42,110,232,0.15); }
+.slide-thumb {
+  aspect-ratio:16/9;
+  background:#eee;
+  overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+}
+.slide-thumb img,.slide-thumb video {
+  width:100%; height:100%; object-fit:cover;
+}
+.slide-info {
+  padding:10px 12px;
+  display:flex; align-items:center; gap:8px;
+}
+.slide-order-badge {
+  font-family:'Syne',sans-serif; font-weight:800;
+  font-size:0.7rem;
+  background:var(--ink); color:var(--paper);
+  width:22px; height:22px; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.slide-fname {
+  flex:1; font-size:0.78rem; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; color:var(--muted);
+}
+.slide-delete {
+  background:none; border:none; cursor:pointer;
+  color:var(--muted); font-size:0.85rem;
+  padding:3px 5px; border-radius:4px;
+  transition:all 0.15s; flex-shrink:0;
+}
+.slide-delete:hover { color:var(--accent); background:rgba(232,77,42,0.08); }
+
+/* ── EMPTY ── */
+.empty-state {
+  text-align:center; padding:60px 20px; color:var(--muted);
+}
+.empty-state .empty-icon { font-size:2.5rem; margin-bottom:16px; display:block; }
+.empty-state p { font-size:0.9rem; line-height:1.5; }
+
+/* ── TOAST ── */
+#toast {
+  position:fixed; bottom:24px; right:24px;
+  background:var(--ink); color:var(--paper);
+  padding:12px 20px;
+  border-radius:10px;
+  font-family:'Syne',sans-serif; font-weight:700;
+  font-size:0.82rem; letter-spacing:0.04em;
+  box-shadow:0 4px 20px rgba(0,0,0,0.2);
+  transform:translateY(80px); opacity:0;
+  transition:all 0.3s ease;
+  pointer-events:none;
+  z-index:1000;
+}
+#toast.show { transform:translateY(0); opacity:1; }
+#toast.success { background:var(--success); }
+#toast.error { background:var(--accent); }
+
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <h2>Gerenciar<br>Apresentação</h2>
+    <p id="auth-desc">Insira a senha para acessar o gerenciador.</p>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="input-senha" placeholder="Senha da apresentação">
+    </div>
+    <p class="auth-error" id="auth-error"></p>
+    <button class="btn-full" id="btn-auth">Entrar</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <a href="#" class="logo">Slide<span>Show</span></a>
+  <span class="page-title">Gerenciador</span>
+  <span class="codigo-tag" id="header-codigo"></span>
+  <div class="header-actions">
+    <a id="link-apresentacao" href="#" class="hbtn hbtn-outline">🖥️ Ver slides</a>
+    <a id="link-controlador" href="#" class="hbtn hbtn-primary">🎮 Controlador</a>
+  </div>
+</header>
+
+<main>
+  <!-- UPLOAD -->
+  <div class="section-title">Adicionar Slides</div>
+  <p class="section-sub">Selecione imagens ou vídeos. Serão adicionados ao final da sequência.</p>
+
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" multiple accept="image/*,video/*">
+    <span class="upload-icon">📁</span>
+    <div class="upload-text">Clique ou arraste arquivos aqui</div>
+    <div class="upload-hint">PNG, JPG, MP4, WebM</div>
+  </div>
+
+  <div id="queue"></div>
+
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-label">
+      <span id="progress-label-text">Enviando...</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bg"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+
+  <button class="btn-upload hidden" id="btn-upload">↑ Enviar slides</button>
+
+  <hr>
+
+  <!-- SLIDES LIST -->
+  <div class="section-title">Slides da Apresentação</div>
+  <p class="section-sub">Arraste para reordenar. Clique em 🗑 para remover.</p>
+
+  <div id="slides-grid">
+    <div class="empty-state">
+      <span class="empty-icon">🔄</span>
+      <p>Carregando slides...</p>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ══════════════════════════════════════
+//  ⚙️  CONFIGURE AQUI
+// ══════════════════════════════════════
+const SUPABASE_URL = 'https://mamhiknpgqbzszmloibk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_99_Zxj_XydCC8x7cAaKmpA_hbEgebR0';
+// ══════════════════════════════════════
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function getCodigo() {
+  const p = new URLSearchParams(location.search);
+  return (p.get('codigo') || '').toLowerCase();
+}
+function formatBytes(b) {
+  if(b<1024) return b+' B';
+  if(b<1048576) return (b/1024).toFixed(0)+' KB';
+  return (b/1048576).toFixed(1)+' MB';
+}
+async function hashSenha(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 3000);
+}
+
+const codigo = getCodigo();
+let apresentacao = null;
+let queueFiles = [];
+let slides = [];
+
+document.getElementById('header-codigo').textContent = codigo;
+const q = `?codigo=${codigo}`;
+document.getElementById('link-apresentacao').href = `apresentacao.html${q}`;
+document.getElementById('link-controlador').href = `controlador.html${q}`;
+
+// ── AUTH ──
+async function doAuth() {
+  const senha = document.getElementById('input-senha').value;
+  if (!senha) return;
+  document.getElementById('btn-auth').disabled = true;
+  document.getElementById('btn-auth').textContent = '...';
+  document.getElementById('auth-error').textContent = '';
+
+  const { data: ap } = await db.from('apresentacoes').select('*').eq('codigo', codigo).single();
+  if (!ap) {
+    document.getElementById('auth-error').textContent = 'Apresentação não encontrada.';
+    document.getElementById('btn-auth').disabled = false;
+    document.getElementById('btn-auth').textContent = 'Entrar';
+    return;
+  }
+  const hash = await hashSenha(senha);
+  if (hash !== ap.senha_hash) {
+    document.getElementById('auth-error').textContent = 'Senha incorreta.';
+    document.getElementById('btn-auth').disabled = false;
+    document.getElementById('btn-auth').textContent = 'Entrar';
+    return;
+  }
+  apresentacao = ap;
+  document.getElementById('auth-overlay').classList.add('hidden');
+  loadSlides();
+}
+
+document.getElementById('btn-auth').addEventListener('click', doAuth);
+document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key==='Enter') doAuth(); });
+
+// ── LOAD SLIDES ──
+async function loadSlides() {
+  const { data } = await db.from('slides').select('*').eq('apresentacao_id', apresentacao.id).order('ordem');
+  slides = data || [];
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('slides-grid');
+  if (slides.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><span class="empty-icon">🖼️</span><p>Nenhum slide ainda.<br>Adicione imagens ou vídeos acima.</p></div>';
+    return;
+  }
+  grid.innerHTML = '';
+  slides.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'slide-card';
+    card.dataset.id = s.id;
+    card.draggable = true;
+
+    const thumb = document.createElement('div');
+    thumb.className = 'slide-thumb';
+    if (s.tipo === 'video') {
+      const v = document.createElement('video');
+      v.src = s.arquivo_url;
+      v.muted = true;
+      v.preload = 'metadata';
+      thumb.appendChild(v);
+    } else {
+      const img = document.createElement('img');
+      img.src = s.arquivo_url;
+      img.loading = 'lazy';
+      thumb.appendChild(img);
+    }
+
+    card.innerHTML += '';
+    card.appendChild(thumb);
+
+    const info = document.createElement('div');
+    info.className = 'slide-info';
+    info.innerHTML = `
+      <div class="slide-order-badge">${i+1}</div>
+      <div class="slide-fname">${s.arquivo_nome}</div>
+      <button class="slide-delete" data-id="${s.id}" data-path="${s.arquivo_url}" title="Remover">🗑</button>
+    `;
+    card.appendChild(info);
+
+    // Drag events
+    card.addEventListener('dragstart', dragStart);
+    card.addEventListener('dragover', dragOver);
+    card.addEventListener('drop', dragDrop);
+    card.addEventListener('dragend', dragEnd);
+    card.addEventListener('dragleave', dragLeave);
+
+    grid.appendChild(card);
+  });
+
+  // Delete buttons
+  grid.querySelectorAll('.slide-delete').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Remover este slide?')) return;
+      const id = btn.dataset.id;
+      const urlParts = btn.dataset.path.split('/slides/');
+      const path = urlParts[1];
+
+      await db.from('slides').delete().eq('id', id);
+      if (path) await db.storage.from('slides').remove([path]);
+      toast('Slide removido', 'success');
+      await loadSlides();
+      await reorderInDB();
+    });
+  });
+}
+
+// ── DRAG & DROP reorder ──
+let dragSrcId = null;
+
+function dragStart(e) {
+  dragSrcId = this.dataset.id;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  this.classList.add('drag-over');
+}
+function dragLeave() { this.classList.remove('drag-over'); }
+function dragEnd() { this.classList.remove('dragging'); }
+
+async function dragDrop(e) {
+  e.stopPropagation();
+  this.classList.remove('drag-over');
+  if (dragSrcId === this.dataset.id) return;
+
+  const srcIdx = slides.findIndex(s => s.id === dragSrcId);
+  const dstIdx = slides.findIndex(s => s.id === this.dataset.id);
+  if (srcIdx === -1 || dstIdx === -1) return;
+
+  const moved = slides.splice(srcIdx, 1)[0];
+  slides.splice(dstIdx, 0, moved);
+  renderGrid();
+  await reorderInDB();
+  toast('Ordem salva ✓', 'success');
+}
+
+async function reorderInDB() {
+  const updates = slides.map((s, i) =>
+    db.from('slides').update({ ordem: i }).eq('id', s.id)
+  );
+  await Promise.all(updates);
+}
+
+// ── UPLOAD ──
+document.getElementById('file-input').addEventListener('change', e => {
+  queueFiles = [...queueFiles, ...Array.from(e.target.files)];
+  renderQueue();
+});
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')||f.type.startsWith('video/'));
+  queueFiles = [...queueFiles, ...files];
+  renderQueue();
+});
+
+function renderQueue() {
+  const q = document.getElementById('queue');
+  const btn = document.getElementById('btn-upload');
+  q.innerHTML = '';
+  if (queueFiles.length === 0) { btn.classList.add('hidden'); return; }
+  btn.classList.remove('hidden');
+  queueFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'queue-item';
+    div.innerHTML = `
+      <div class="queue-num">${i+1}</div>
+      <div class="queue-name">${f.name}</div>
+      <div class="queue-size">${formatBytes(f.size)}</div>
+      <button class="queue-rm" data-idx="${i}">✕</button>
+    `;
+    q.appendChild(div);
+  });
+  q.querySelectorAll('.queue-rm').forEach(btn => {
+    btn.addEventListener('click', () => {
+      queueFiles.splice(Number(btn.dataset.idx), 1);
+      renderQueue();
+    });
+  });
+}
+
+document.getElementById('btn-upload').addEventListener('click', async () => {
+  if (!apresentacao || queueFiles.length === 0) return;
+  const btn = document.getElementById('btn-upload');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  const pw = document.getElementById('progress-wrap');
+  const pf = document.getElementById('progress-fill');
+  const pp = document.getElementById('progress-pct');
+  pw.style.display = 'block';
+
+  const ordemBase = slides.length;
+  const inserts = [];
+
+  for (let i = 0; i < queueFiles.length; i++) {
+    const f = queueFiles[i];
+    const ext = f.name.split('.').pop();
+    const path = `${apresentacao.id}/${Date.now()}_${i}.${ext}`;
+    document.getElementById('progress-label-text').textContent = `Enviando ${i+1} de ${queueFiles.length}...`;
+
+    const { error } = await db.storage.from('slides').upload(path, f);
+    if (error) { toast(`Erro: ${f.name}`, 'error'); continue; }
+
+    const { data: urlData } = db.storage.from('slides').getPublicUrl(path);
+    inserts.push({
+      apresentacao_id: apresentacao.id,
+      arquivo_url: urlData.publicUrl,
+      arquivo_nome: f.name,
+      tipo: f.type.startsWith('video/') ? 'video' : 'imagem',
+      ordem: ordemBase + i
+    });
+
+    const pct = Math.round(((i+1)/queueFiles.length)*100);
+    pf.style.width = pct + '%';
+    pp.textContent = pct + '%';
+  }
+
+  if (inserts.length > 0) {
+    await db.from('slides').insert(inserts);
+    toast(`${inserts.length} slide(s) adicionado(s) ✓`, 'success');
+  }
+
+  queueFiles = [];
+  renderQueue();
+  pw.style.display = 'none';
+  pf.style.width = '0%';
+  btn.disabled = false;
+  btn.textContent = '↑ Enviar slides';
+  await loadSlides();
+});
+
+// Realtime: atualiza se outro gerenciador mudar
+function setupRealtime() {
+  db.channel(`slides-manager-${apresentacao.id}`)
+    .on('postgres_changes', {
+      event:'*', schema:'public', table:'slides',
+      filter:`apresentacao_id=eq.${apresentacao.id}`
+    }, () => loadSlides())
+    .subscribe();
+}
+
+// Verifica se há código
+if (!codigo) {
+  document.getElementById('auth-desc').textContent = 'Nenhum código de apresentação informado na URL.';
+  document.getElementById('btn-auth').disabled = true;
+}
+</script>
+</body>
+</html>

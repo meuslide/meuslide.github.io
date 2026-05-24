@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controlador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#0a0a0f;
+  --paper:#f5f3ee;
+  --accent:#e84d2a;
+  --accent2:#2a6ee8;
+  --muted:#8a8880;
+  --border:#ddd9d0;
+  --success:#1a9e5c;
+  --error:#e84d2a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body {
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh;
+  background:var(--ink);
+  color:white;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+/* ── LOADING ── */
+#state-loading { text-align:center; }
+.spinner {
+  width:32px;height:32px;
+  border:2px solid rgba(255,255,255,0.15);
+  border-top-color:white;
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+  margin:0 auto 16px;
+}
+@keyframes spin { to{transform:rotate(360deg);} }
+.load-text {
+  font-family:'Syne',sans-serif;
+  font-size:0.8rem;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  opacity:0.4;
+}
+
+/* ── AUTH CARD ── */
+#state-auth {
+  width:100%;
+  max-width:380px;
+}
+.auth-label {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:0.7rem;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  opacity:0.4;
+  margin-bottom:8px;
+}
+.auth-title {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:2.2rem;
+  letter-spacing:-0.04em;
+  line-height:1.1;
+  margin-bottom:6px;
+}
+.auth-title span { color:var(--accent); }
+.auth-sub {
+  font-size:0.85rem;
+  opacity:0.45;
+  margin-bottom:32px;
+}
+.auth-field {
+  display:flex;
+  gap:0;
+  border:1.5px solid rgba(255,255,255,0.15);
+  border-radius:12px;
+  overflow:hidden;
+  transition:border-color 0.2s;
+}
+.auth-field:focus-within { border-color:rgba(255,255,255,0.5); }
+.auth-field input {
+  flex:1;
+  background:transparent;
+  border:none;
+  padding:16px 18px;
+  font-family:'DM Sans',sans-serif;
+  font-size:1rem;
+  color:white;
+  outline:none;
+}
+.auth-field input::placeholder { opacity:0.3; }
+.auth-field button {
+  padding:0 20px;
+  background:white;
+  color:var(--ink);
+  border:none;
+  cursor:pointer;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.8rem;
+  letter-spacing:0.05em;
+  text-transform:uppercase;
+  transition:background 0.2s;
+  flex-shrink:0;
+}
+.auth-field button:hover { background:#e8e4dc; }
+.auth-error {
+  margin-top:12px;
+  font-size:0.82rem;
+  color:var(--accent);
+  opacity:0;
+  transition:opacity 0.2s;
+}
+.auth-error.visible { opacity:1; }
+
+/* ── CONTROLLER ── */
+#state-ctrl {
+  width:100%;
+  max-width:440px;
+}
+.ctrl-header {
+  text-align:center;
+  margin-bottom:40px;
+}
+.ctrl-badge {
+  display:inline-block;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.7rem;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  background:rgba(255,255,255,0.08);
+  padding:6px 14px;
+  border-radius:100px;
+  margin-bottom:16px;
+}
+.ctrl-badge .dot {
+  width:6px;height:6px;
+  background:var(--success);
+  border-radius:50%;
+  display:inline-block;
+  margin-right:6px;
+  animation:pulse-dot 2s infinite;
+}
+@keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.ctrl-title {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:1.6rem;
+  letter-spacing:-0.03em;
+  margin-bottom:4px;
+}
+.ctrl-sub { font-size:0.85rem; opacity:0.4; }
+
+/* ── SLIDE PREVIEW ── */
+.slide-preview {
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;
+  padding:20px;
+  text-align:center;
+  margin-bottom:28px;
+}
+.slide-thumb-wrap {
+  width:100%;
+  aspect-ratio:16/9;
+  background:rgba(255,255,255,0.03);
+  border-radius:10px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:14px;
+}
+.slide-thumb-wrap img,
+.slide-thumb-wrap video {
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+}
+.slide-num {
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:2rem;
+  letter-spacing:-0.04em;
+}
+.slide-total { font-size:0.8rem; opacity:0.4; margin-top:2px; }
+
+/* ── BUTTONS ── */
+.btn-row {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:16px;
+}
+.ctrl-btn {
+  padding:22px 10px;
+  border:none;
+  border-radius:14px;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:1rem;
+  cursor:pointer;
+  transition:all 0.15s;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  letter-spacing:0.02em;
+}
+.ctrl-btn:active { transform:scale(0.96); }
+.ctrl-btn:disabled { opacity:0.3; cursor:not-allowed; transform:none; }
+.ctrl-btn .btn-icon { font-size:1.6rem; }
+.ctrl-btn .btn-label { font-size:0.75rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.8; }
+
+.btn-prev {
+  background:rgba(255,255,255,0.08);
+  color:white;
+  border:1px solid rgba(255,255,255,0.12);
+}
+.btn-prev:hover:not(:disabled) { background:rgba(255,255,255,0.14); }
+
+.btn-next {
+  background:white;
+  color:var(--ink);
+}
+.btn-next:hover:not(:disabled) { background:#e8e4dc; }
+
+/* FEEDBACK */
+.feedback {
+  text-align:center;
+  font-size:0.8rem;
+  font-family:'Syne',sans-serif;
+  font-weight:600;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  opacity:0;
+  transition:opacity 0.3s;
+  color:var(--success);
+  height:20px;
+}
+.feedback.visible { opacity:1; }
+.feedback.err { color:var(--accent); }
+
+.ctrl-footer {
+  margin-top:24px;
+  text-align:center;
+  font-size:0.75rem;
+  opacity:0.25;
+}
+.ctrl-footer kbd {
+  background:rgba(255,255,255,0.1);
+  padding:2px 6px;
+  border-radius:4px;
+  font-family:'DM Sans',sans-serif;
+}
+
+/* ── HIDDEN ── */
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="state-loading">
+  <div class="spinner"></div>
+  <p class="load-text">Carregando...</p>
+</div>
+
+<!-- AUTH -->
+<div id="state-auth" class="hidden">
+  <p class="auth-label">Controlador</p>
+  <h1 class="auth-title" id="auth-titulo">Apresentação<br><span id="auth-codigo"></span></h1>
+  <p class="auth-sub">Insira a senha para controlar os slides.</p>
+  <div class="auth-field">
+    <input type="password" id="input-senha" placeholder="Senha da apresentação" autocomplete="current-password">
+    <button id="btn-auth">Entrar</button>
+  </div>
+  <p class="auth-error" id="auth-error">Senha incorreta. Tente novamente.</p>
+</div>
+
+<!-- CONTROLLER -->
+<div id="state-ctrl" class="hidden">
+  <div class="ctrl-header">
+    <div class="ctrl-badge"><span class="dot"></span>Controlador ativo</div>
+    <div class="ctrl-title" id="ctrl-titulo"></div>
+    <div class="ctrl-sub" id="ctrl-codigo"></div>
+  </div>
+
+  <div class="slide-preview">
+    <div class="slide-thumb-wrap" id="thumb-wrap">
+      <div style="opacity:0.2; font-family:'Syne',sans-serif; font-size:0.8rem;">SEM PRÉVIA</div>
+    </div>
+    <div class="slide-num" id="slide-num">1</div>
+    <div class="slide-total" id="slide-total">de 1 slide</div>
+  </div>
+
+  <div class="btn-row">
+    <button class="ctrl-btn btn-prev" id="btn-prev">
+      <span class="btn-icon">←</span>
+      <span class="btn-label">Anterior</span>
+    </button>
+    <button class="ctrl-btn btn-next" id="btn-next">
+      <span class="btn-icon">→</span>
+      <span class="btn-label">Próximo</span>
+    </button>
+  </div>
+  <div class="feedback" id="feedback"></div>
+
+  <div class="ctrl-footer">
+    Use <kbd>←</kbd> <kbd>→</kbd> no teclado também
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ══════════════════════════════════════
+//  ⚙️  CONFIGURE AQUI
+// ══════════════════════════════════════
+const SUPABASE_URL = 'https://mamhiknpgqbzszmloibk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_99_Zxj_XydCC8x7cAaKmpA_hbEgebR0';
+// ══════════════════════════════════════
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function getCodigo() {
+  const p = new URLSearchParams(location.search);
+  return (p.get('codigo') || '').toLowerCase();
+}
+
+async function hashSenha(senha) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(senha));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function show(id) {
+  ['state-loading','state-auth','state-ctrl'].forEach(s => {
+    document.getElementById(s).classList.toggle('hidden', s !== id);
+  });
+}
+
+function flash(msg, isErr=false) {
+  const el = document.getElementById('feedback');
+  el.textContent = msg;
+  el.className = 'feedback visible' + (isErr ? ' err' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('visible'), 2000);
+}
+
+const codigo = getCodigo();
+let apresentacao = null;
+let slides = [];
+let currentIndex = 0;
+let sending = false;
+
+function updateThumb() {
+  const wrap = document.getElementById('thumb-wrap');
+  const s = slides[currentIndex];
+  if (!s) return;
+  wrap.innerHTML = '';
+  if (s.tipo === 'video') {
+    const v = document.createElement('video');
+    v.src = s.arquivo_url;
+    v.muted = true;
+    v.preload = 'metadata';
+    wrap.appendChild(v);
+  } else {
+    const img = document.createElement('img');
+    img.src = s.arquivo_url;
+    wrap.appendChild(img);
+  }
+  document.getElementById('slide-num').textContent = currentIndex + 1;
+  document.getElementById('slide-total').textContent = `de ${slides.length} slide${slides.length !== 1 ? 's' : ''}`;
+}
+
+async function sendAcao(acao, novoIndex) {
+  if (sending) return;
+  sending = true;
+  document.getElementById('btn-prev').disabled = true;
+  document.getElementById('btn-next').disabled = true;
+
+  const { error } = await db
+    .from('controle')
+    .update({ slide_atual: novoIndex, acao, updated_at: new Date().toISOString() })
+    .eq('apresentacao_id', apresentacao.id);
+
+  if (error) {
+    flash('Erro ao enviar', true);
+  } else {
+    currentIndex = novoIndex;
+    updateThumb();
+    flash(acao === 'proximo' ? '→ Próximo' : '← Anterior');
+  }
+
+  sending = false;
+  document.getElementById('btn-prev').disabled = false;
+  document.getElementById('btn-next').disabled = false;
+}
+
+async function initCtrl() {
+  // Busca apresentação
+  const { data: ap } = await db
+    .from('apresentacoes')
+    .select('id, titulo')
+    .eq('codigo', codigo)
+    .single();
+
+  if (!ap) {
+    show('state-auth');
+    document.getElementById('auth-error').textContent = 'Apresentação não encontrada.';
+    document.getElementById('auth-error').classList.add('visible');
+    return;
+  }
+
+  document.getElementById('auth-titulo').textContent = ap.titulo || codigo;
+  document.getElementById('auth-codigo').textContent = codigo;
+
+  show('state-auth');
+
+  document.getElementById('btn-auth').addEventListener('click', () => doAuth(ap));
+  document.getElementById('input-senha').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doAuth(ap);
+  });
+}
+
+async function doAuth(ap) {
+  const senha = document.getElementById('input-senha').value;
+  if (!senha) return;
+
+  document.getElementById('btn-auth').textContent = '...';
+
+  const hash = await hashSenha(senha);
+
+  const { data: apFull } = await db
+    .from('apresentacoes')
+    .select('senha_hash')
+    .eq('id', ap.id)
+    .single();
+
+  if (!apFull || apFull.senha_hash !== hash) {
+    document.getElementById('auth-error').classList.add('visible');
+    document.getElementById('btn-auth').textContent = 'Entrar';
+    return;
+  }
+
+  // Autenticado
+  apresentacao = ap;
+  document.getElementById('ctrl-titulo').textContent = ap.titulo || codigo;
+  document.getElementById('ctrl-codigo').textContent = codigo;
+
+  // Carrega slides
+  const { data: slidesData } = await db
+    .from('slides')
+    .select('*')
+    .eq('apresentacao_id', ap.id)
+    .order('ordem');
+
+  slides = slidesData || [];
+
+  // Pega estado atual
+  const { data: ctrl } = await db
+    .from('controle')
+    .select('slide_atual')
+    .eq('apresentacao_id', ap.id)
+    .single();
+
+  currentIndex = ctrl ? Math.min(ctrl.slide_atual, slides.length - 1) : 0;
+
+  show('state-ctrl');
+  updateThumb();
+
+  // Botões
+  document.getElementById('btn-prev').addEventListener('click', () => {
+    if (currentIndex > 0) sendAcao('anterior', currentIndex - 1);
+  });
+  document.getElementById('btn-next').addEventListener('click', () => {
+    if (currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
+    else flash('Último slide', false);
+  });
+
+  // Teclado
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' && currentIndex > 0) sendAcao('anterior', currentIndex - 1);
+    if (e.key === 'ArrowRight' && currentIndex < slides.length - 1) sendAcao('proximo', currentIndex + 1);
+  });
+
+  // Realtime: sync se outro controlador mudar
+  db.channel(`ctrl-sync-${ap.id}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'controle',
+      filter: `apresentacao_id=eq.${ap.id}`
+    }, payload => {
+      const ni = payload.new.slide_atual;
+      if (ni !== currentIndex) {
+        currentIndex = ni;
+        updateThumb();
+      }
+    })
+    .subscribe();
+}
+
+initCtrl().catch(() => show('state-auth'));
+</script>
+</body>
+</html>
