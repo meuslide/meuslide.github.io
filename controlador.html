@@ -426,14 +426,23 @@ async function initCtrl() {
     authTitulo.textContent = ap.titulo || codigo;
   }
 
-  document.getElementById('auth-codigo').textContent = codigo;
+  const authCodigo = document.getElementById('auth-codigo');
+  if (authCodigo) {
+    authCodigo.textContent = codigo;
+  }
 
   show('state-auth');
 
-  document.getElementById('btn-auth').addEventListener('click', () => doAuth(ap));
-  document.getElementById('input-senha').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doAuth(ap);
-  });
+  const btnAuth = document.getElementById('btn-auth');
+  const inputSenha = document.getElementById('input-senha');
+  if (btnAuth) {
+    btnAuth.addEventListener('click', () => doAuth(ap));
+  }
+  if (inputSenha) {
+    inputSenha.addEventListener('keydown', e => {
+      if (e.key === 'Enter') doAuth(ap);
+    });
+  }
 }
 
 async function doAuth(ap) {
