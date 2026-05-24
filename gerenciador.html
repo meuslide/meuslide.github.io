@@ -463,6 +463,14 @@ let apresentacao = null;
 let queueFiles = [];
 let slides = [];
 
+function getSlideKind(slide) {
+  const tipo = (slide?.tipo || '').toLowerCase();
+  if (tipo === 'video' || tipo === 'imagem') return tipo;
+  const source = `${slide?.arquivo_nome || ''} ${slide?.arquivo_url || ''}`.toLowerCase();
+  if (/\.(mp4|webm|ogg|mov)(?:$|\?)/.test(source)) return 'video';
+  return 'imagem';
+}
+
 document.getElementById('header-codigo').textContent = codigo;
 const q = `?codigo=${codigo}`;
 document.getElementById('link-apresentacao').href = `apresentacao.html${q}`;
@@ -520,7 +528,7 @@ function renderGrid() {
 
     const thumb = document.createElement('div');
     thumb.className = 'slide-thumb';
-    if (s.tipo === 'video') {
+    if (getSlideKind(s) === 'video') {
       const v = document.createElement('video');
       v.src = s.arquivo_url;
       v.muted = true;

@@ -560,8 +560,19 @@ async function init() {
 // ── Upload de arquivos ──
 let selectedFiles = [];
 
+function getFileKind(file) {
+  const name = (file?.name || '').toLowerCase();
+  const type = (file?.type || '').toLowerCase();
+  const ext = name.includes('.') ? name.split('.').pop() : '';
+  if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('image/')) return 'imagem';
+  if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return 'video';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext)) return 'imagem';
+  return 'unknown';
+}
+
 document.getElementById('file-input').addEventListener('change', e => {
-  selectedFiles = Array.from(e.target.files);
+  selectedFiles = Array.from(e.target.files).filter(f => getFileKind(f) !== 'unknown');
   renderFileList();
 });
 
@@ -571,7 +582,7 @@ zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
 zone.addEventListener('drop', e => {
   e.preventDefault();
   zone.classList.remove('dragover');
-  selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+  selectedFiles = Array.from(e.dataTransfer.files).filter(f => getFileKind(f) !== 'unknown');
   renderFileList();
 });
 
@@ -642,7 +653,7 @@ document.getElementById('btn-criar').addEventListener('click', async () => {
     }
 
     const { data: urlData } = db.storage.from('slides').getPublicUrl(path);
-    const tipo = f.type.startsWith('video/') ? 'video' : 'imagem';
+    const tipo = getFileKind(f);
     slidesInsert.push({
       apresentacao_id: ap.id,
       arquivo_url: urlData.publicUrl,

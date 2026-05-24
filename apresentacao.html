@@ -367,6 +367,14 @@ let pointerState = { x: 0.5, y: 0.5, visible: false };
 let qrVisible = false;
 let lastEffectStamp = null;
 
+function getSlideKind(slide) {
+  const tipo = (slide?.tipo || '').toLowerCase();
+  if (tipo === 'video' || tipo === 'imagem') return tipo;
+  const source = `${slide?.arquivo_nome || ''} ${slide?.arquivo_url || ''}`.toLowerCase();
+  if (/\.(mp4|webm|ogg|mov)(?:$|\?)/.test(source)) return 'video';
+  return 'imagem';
+}
+
 function getSlideUrl(slideIndex = currentIndex) {
   return `${location.origin}/${encodeURIComponent(codigo)}/slides?slide=${slideIndex + 1}`;
 }
@@ -528,12 +536,13 @@ function buildSlides(slidesData) {
     div.className = 'slide';
     div.id = `slide-${i}`;
 
-    if (s.tipo === 'video') {
+    if (getSlideKind(s) === 'video') {
       const v = document.createElement('video');
       v.src = s.arquivo_url;
       v.controls = false;
       v.loop = true;
       v.playsInline = true;
+      v.muted = true;
       v.addEventListener('loadedmetadata', renderPointer);
       div.appendChild(v);
     } else {
@@ -562,27 +571,40 @@ function goToSlide(index, skipPause) {
   currentIndex = index;
   slides[currentIndex].classList.add('active');
 
+  const activeVideo = slides[currentIndex]?.querySelector('video');
+  if (activeVideo) {
+    activeVideo.muted = true;
+    activeVideo.play().catch(() => {});
+  }
+
   document.getElementById('hud-counter').textContent = `${currentIndex + 1} / ${slides.length}`;
   window.requestAnimationFrame(renderPointer);
   renderQrOverlay();
 }
 
 function handleAcao(acao, slideAtual) {
+  if (acao === 'play_video' || acao === 'pause_video' || acao === 'restart_video') {
+    const vid = slides[currentIndex]?.querySelector('video');
+    if (!vid) return;
+
+    if (acao === 'play_video') {
+      vid.muted = true;
+      vid.play().catch(() => {});
+    } else if (acao === 'pause_video') {
+      vid.pause();
+    } else if (acao === 'restart_video') {
+      vid.currentTime = 0;
+      vid.muted = true;
+      vid.play().catch(() => {});
+    }
+    return;
+  }
+
   if (acao === 'proximo' || acao === 'anterior' || acao === 'ir_para' || acao === 'primeiro') {
     const target = slideAtual;
     
     if (target !== currentIndex) {
       goToSlide(target);
-    } else {
-      // Mesmo slide — pode ser play/pause de vídeo
-      const vid = slides[currentIndex]?.querySelector('video');
-      if (vid) {
-        if (acao === 'proximo') {
-          vid.paused ? vid.play() : goToSlide(currentIndex + 1);
-        } else if (acao === 'anterior') {
-          !vid.paused ? vid.pause() : goToSlide(currentIndex - 1);
-        }
-      }
     }
   }
 }

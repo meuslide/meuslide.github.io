@@ -194,6 +194,62 @@ body {
 }
 .slide-total { font-size:0.8rem; opacity:0.4; margin-top:2px; }
 
+/* ── MEDIA CONTROLS ── */
+.media-panel {
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:18px;
+}
+.media-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.media-title {
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.8rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  opacity:0.8;
+}
+.media-sub {
+  font-size:0.75rem;
+  opacity:0.45;
+  margin-top:4px;
+}
+.media-state {
+  font-size:0.75rem;
+  opacity:0.45;
+  white-space:nowrap;
+}
+.media-grid {
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:10px;
+}
+.media-btn {
+  padding:14px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.08);
+  color:white;
+  font-family:'Syne',sans-serif;
+  font-weight:700;
+  font-size:0.78rem;
+  letter-spacing:0.05em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:transform 0.15s, background 0.15s, opacity 0.15s;
+}
+.media-btn:hover:not(:disabled) { background:rgba(255,255,255,0.13); }
+.media-btn:active:not(:disabled) { transform:scale(0.97); }
+.media-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+
 /* ── POINTER ── */
 .pointer-panel {
   background:rgba(255,255,255,0.04);
@@ -483,6 +539,21 @@ body {
     <div class="slide-total" id="slide-total">de 1 slide</div>
   </div>
 
+  <div class="media-panel">
+    <div class="media-head">
+      <div>
+        <div class="media-title">Vídeo</div>
+        <div class="media-sub" id="media-sub">Os controles aparecem quando o slide atual é um vídeo.</div>
+      </div>
+      <div class="media-state" id="media-state">sem vídeo</div>
+    </div>
+    <div class="media-grid">
+      <button class="media-btn" id="btn-media-play" type="button">Play</button>
+      <button class="media-btn" id="btn-media-pause" type="button">Pause</button>
+      <button class="media-btn" id="btn-media-restart" type="button">Reiniciar</button>
+    </div>
+  </div>
+
   <div class="btn-row">
     <button class="ctrl-btn btn-prev" id="btn-prev">
       <span class="btn-icon">←</span>
@@ -594,6 +665,60 @@ let effectSending = false;
 let qrVisible = false;
 let qrSending = false;
 
+function getSlideKind(slide) {
+  const tipo = (slide?.tipo || '').toLowerCase();
+  if (tipo === 'video' || tipo === 'imagem') return tipo;
+  const source = `${slide?.arquivo_nome || ''} ${slide?.arquivo_url || ''}`.toLowerCase();
+  if (/\.(mp4|webm|ogg|mov)(?:$|\?)/.test(source)) return 'video';
+  return 'imagem';
+}
+
+function getCurrentVideo() {
+  return slides[currentIndex]?.querySelector('video') || null;
+}
+
+function updateMediaState() {
+  const currentSlide = slides[currentIndex];
+  const isVideo = getSlideKind(currentSlide) === 'video';
+  const video = getCurrentVideo();
+  const stateEl = document.getElementById('media-state');
+  const subEl = document.getElementById('media-sub');
+  const playBtn = document.getElementById('btn-media-play');
+  const pauseBtn = document.getElementById('btn-media-pause');
+  const restartBtn = document.getElementById('btn-media-restart');
+
+  if (stateEl) stateEl.textContent = isVideo ? (video && !video.paused ? 'tocando' : 'pronto') : 'sem vídeo';
+  if (subEl) subEl.textContent = isVideo ? 'Use os controles para tocar, pausar ou reiniciar o vídeo do slide atual.' : 'Os controles aparecem quando o slide atual é um vídeo.';
+  [playBtn, pauseBtn, restartBtn].forEach(btn => {
+    if (btn) btn.disabled = !isVideo;
+  });
+}
+
+function syncCurrentVideoAction(action) {
+  const video = getCurrentVideo();
+  if (!video) return false;
+
+  if (action === 'play_video') {
+    video.muted = true;
+    video.play().catch(() => {});
+    return true;
+  }
+
+  if (action === 'pause_video') {
+    video.pause();
+    return true;
+  }
+
+  if (action === 'restart_video') {
+    video.currentTime = 0;
+    video.muted = true;
+    video.play().catch(() => {});
+    return true;
+  }
+
+  return false;
+}
+
 const POINTER_DOUBLE_TAP_MS = 320;
 const POINTER_TAP_MOVE_PX = 10;
 
@@ -689,25 +814,37 @@ function setQrDisabled(disabled) {
   const btn = document.getElementById('btn-qr');
   if (btn) btn.disabled = disabled;
 }
+      v.muted = true;
 
 function updateThumb() {
   const wrap = document.getElementById('thumb-wrap');
   const s = slides[currentIndex];
   if (!s) return;
   wrap.innerHTML = '';
-  if (s.tipo === 'video') {
+
+  const activeVideo = slides[currentIndex]?.querySelector('video');
+  if (activeVideo) {
+    activeVideo.muted = true;
+    activeVideo.play().catch(() => {});
+  }
+  if (getSlideKind(s) === 'video') {
     const v = document.createElement('video');
     v.src = s.arquivo_url;
     v.muted = true;
     v.preload = 'metadata';
     wrap.appendChild(v);
   } else {
+  if (syncCurrentVideoAction(acao)) {
+    return;
+  }
+
     const img = document.createElement('img');
     img.src = s.arquivo_url;
     wrap.appendChild(img);
   }
   document.getElementById('slide-num').textContent = currentIndex + 1;
   document.getElementById('slide-total').textContent = `de ${slides.length} slide${slides.length !== 1 ? 's' : ''}`;
+  updateMediaState();
 }
 
 async function sendAcao(acao, novoIndex) {
@@ -745,6 +882,34 @@ async function sendAcao(acao, novoIndex) {
   sending = false;
   document.getElementById('btn-prev').disabled = false;
   document.getElementById('btn-next').disabled = false;
+}
+
+async function sendVideoAcao(acao) {
+  if (!apresentacao || !syncCurrentVideoAction(acao)) {
+    flash('Sem vídeo neste slide', true);
+    return;
+  }
+
+  const { error } = await db
+    .from('controle')
+    .update({
+      slide_atual: currentIndex,
+      acao,
+      qr_visible: qrVisible,
+      pointer_x: pointerState.x,
+      pointer_y: pointerState.y,
+      pointer_visible: pointerState.visible,
+      pointer_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('apresentacao_id', apresentacao.id);
+
+  if (error) {
+    flash('Erro ao enviar comando do vídeo', true);
+  } else {
+    updateMediaState();
+    flash(acao === 'play_video' ? '▶ Play' : acao === 'pause_video' ? '⏸ Pause' : '↺ Reiniciar');
+  }
 }
 
 async function sendEfeito(efeito) {
@@ -923,6 +1088,13 @@ async function doAuth(ap) {
       else flash('Último slide', false);
     });
 
+    const videoPlayButton = document.getElementById('btn-media-play');
+    const videoPauseButton = document.getElementById('btn-media-pause');
+    const videoRestartButton = document.getElementById('btn-media-restart');
+    if (videoPlayButton) videoPlayButton.addEventListener('click', () => sendVideoAcao('play_video'));
+    if (videoPauseButton) videoPauseButton.addEventListener('click', () => sendVideoAcao('pause_video'));
+    if (videoRestartButton) videoRestartButton.addEventListener('click', () => sendVideoAcao('restart_video'));
+
     // Teclado
     document.addEventListener('keydown', e => {
       if (e.key === 'ArrowLeft' && currentIndex > 0) sendAcao('anterior', currentIndex - 1);
@@ -1021,6 +1193,7 @@ async function doAuth(ap) {
         if (typeof payload.new.qr_visible === 'boolean') {
           setQrState(payload.new.qr_visible);
         }
+        updateMediaState();
       })
       .subscribe();
 
