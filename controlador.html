@@ -446,11 +446,17 @@ async function doAuth(ap) {
     .eq('id', ap.id)
     .single();
 
+  console.log('hash gerado:', hash);
+  console.log('hash do banco:', ap.senha_hash);
+  console.log('batem?', hash === ap.senha_hash);
+
   if (!apFull || apFull.senha_hash !== hash) {
     document.getElementById('auth-error').classList.add('visible');
     document.getElementById('btn-auth').textContent = 'Entrar';
     return;
   }
+
+  console.log('autenticado, carregando slides...');
 
   // Autenticado
   apresentacao = ap;
