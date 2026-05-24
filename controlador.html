@@ -421,7 +421,12 @@ async function initCtrl() {
     return;
   }
 
-  document.getElementById('auth-titulo').textContent = ap.titulo || codigo;
+  let auth_titulo = document.getElementById('auth-titulo');
+
+  if(auth_titulo != null){
+    auth_titulo.textContent = ap.titulo || codigo;
+  }
+
   document.getElementById('auth-codigo').textContent = codigo;
 
   show('state-auth');
