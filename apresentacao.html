@@ -118,13 +118,17 @@ body {
   line-height:1.5;
 }
 .qr-code {
-  width:300px;
-  height:300px;
+  width:min(86vw, 86vh);
+  height:min(86vw, 86vh);
+  max-width:760px;
+  max-height:760px;
+  min-width:280px;
+  min-height:280px;
   display:flex;
   align-items:center;
   justify-content:center;
   background:#ffffff;
-  padding:10px;
+  padding:14px;
 }
 .qr-url {
   max-width:320px;
@@ -699,11 +703,14 @@ function renderQrOverlay() {
   const qrUrl = getSlideUrl(currentIndex);
   codeEl.innerHTML = '';
 
+  const containerSize = Math.floor(Math.min(codeEl.clientWidth, codeEl.clientHeight));
+  const qrSize = Math.max(220, containerSize - 20);
+
   if (window.QRCode) {
     new QRCode(codeEl, {
       text: qrUrl,
-      width: 280,
-      height: 280,
+      width: qrSize,
+      height: qrSize,
       colorDark: '#000000',
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.M
@@ -1523,6 +1530,7 @@ async function init() {
 }
 
 window.addEventListener('resize', renderPointer);
+window.addEventListener('resize', renderQrOverlay);
 window.addEventListener('scroll', renderPointer, true);
 
 init();
