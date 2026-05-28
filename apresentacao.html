@@ -178,6 +178,34 @@ body {
   color:rgba(255,255,255,0.6);
   margin-bottom:18px;
 }
+.poll-progress {
+  display:none;
+  margin-bottom:14px;
+}
+.poll-progress.visible { display:block; }
+.poll-progress-top {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:7px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.78rem;
+  color:rgba(255,255,255,0.62);
+}
+.poll-progress-bar {
+  height:8px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(255,255,255,0.1);
+}
+.poll-progress-fill {
+  height:100%;
+  width:0%;
+  border-radius:999px;
+  background:linear-gradient(90deg, #2a6ee8, #64a0ff);
+  transition:width 0.25s ease;
+}
 .poll-choice-list {
   display:grid;
   gap:10px;
@@ -307,6 +335,15 @@ body {
   font-family:'DM Sans',sans-serif;
   font-size:0.84rem;
   color:#b8ffd7;
+}
+.poll-consolidated-title {
+  font-family:'Syne',sans-serif;
+  font-size:0.8rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  opacity:0.58;
+  margin:8px 0 10px;
 }
 
 /* ── EFFECTS ── */
@@ -503,6 +540,13 @@ body:hover #hud { opacity:1; }
     <div class="poll-kicker" id="poll-kicker">Enquete ao vivo</div>
     <div class="poll-question" id="poll-question"></div>
     <div class="poll-subtitle" id="poll-subtitle"></div>
+    <div class="poll-progress" id="poll-progress">
+      <div class="poll-progress-top">
+        <span id="poll-progress-label">Progresso</span>
+        <span id="poll-progress-text">0%</span>
+      </div>
+      <div class="poll-progress-bar"><div class="poll-progress-fill" id="poll-progress-fill"></div></div>
+    </div>
     <div class="poll-choice-list" id="poll-choice-list"></div>
     <div class="poll-submit-row" id="poll-submit-row">
       <button class="poll-submit-btn" id="poll-submit-btn" type="button">Responder</button>
@@ -558,10 +602,15 @@ let lastEffectStamp = null;
 let activePoll = null;
 let activePollOptions = [];
 let activePollResponses = [];
+let quizPolls = [];
+let quizOptionsByPoll = new Map();
+let quizResponsesByPoll = new Map();
+let quizAllResponsesByPoll = new Map();
+let quizCurrentIndex = 0;
 let pollSelection = [];
 let pollResponsesChannel = null;
 let currentLoadedPollId = null;
-let pollControlState = { enquete_id: null, enquete_status: 'closed' };
+let pollControlState = { enquete_id: null, enquete_status: 'closed', acao: null };
 
 function escapeHtml(value) {
   return String(value || '')
@@ -592,7 +641,7 @@ function getSlideKind(slide) {
 }
 
 function getSlideUrl(slideIndex = currentIndex) {
-  return `${location.origin}/${encodeURIComponent(codigo)}/slides?slide=${slideIndex + 1}`;
+  return `${location.origin}/apresentacao.html?codigo=${encodeURIComponent(codigo)}`;
 }
 
 function getCurrentMediaRect() {
@@ -684,14 +733,23 @@ function clearPollOverlay() {
   activePoll = null;
   activePollOptions = [];
   activePollResponses = [];
+  quizPolls = [];
+  quizOptionsByPoll = new Map();
+  quizResponsesByPoll = new Map();
+  quizAllResponsesByPoll = new Map();
+  quizCurrentIndex = 0;
   pollSelection = [];
+  const kickerEl = document.getElementById('poll-kicker');
   const questionEl = document.getElementById('poll-question');
   const subtitleEl = document.getElementById('poll-subtitle');
+  const progressEl = document.getElementById('poll-progress');
   const choiceList = document.getElementById('poll-choice-list');
   const noteEl = document.getElementById('poll-note');
   const resultsEl = document.getElementById('poll-results');
+  if (kickerEl) kickerEl.textContent = 'Enquete ao vivo';
   if (questionEl) questionEl.textContent = '';
   if (subtitleEl) subtitleEl.textContent = '';
+  if (progressEl) progressEl.classList.remove('visible');
   if (choiceList) choiceList.innerHTML = '';
   if (noteEl) noteEl.textContent = '';
   if (resultsEl) {
@@ -705,7 +763,71 @@ function formatPollSelectionText(ids) {
   return ids.length ? `${ids.length} resposta${ids.length !== 1 ? 's' : ''} selecionada${ids.length !== 1 ? 's' : ''}` : 'Nenhuma opção selecionada';
 }
 
+function getCurrentQuizPoll() {
+  if (!quizPolls.length) return null;
+  if (quizCurrentIndex < 0 || quizCurrentIndex >= quizPolls.length) return null;
+  return quizPolls[quizCurrentIndex];
+}
+
+function getFirstUnansweredQuizIndex() {
+  for (let index = 0; index < quizPolls.length; index += 1) {
+    const poll = quizPolls[index];
+    if (!quizResponsesByPoll.has(poll.id)) return index;
+  }
+  return quizPolls.length;
+}
+
+function renderQuizProgress(answeredCount, totalCount, label = 'Progresso do quiz') {
+  const progressEl = document.getElementById('poll-progress');
+  const labelEl = document.getElementById('poll-progress-label');
+  const textEl = document.getElementById('poll-progress-text');
+  const fillEl = document.getElementById('poll-progress-fill');
+
+  if (!progressEl || !labelEl || !textEl || !fillEl) return;
+
+  const safeTotal = Math.max(1, totalCount || 0);
+  const safeAnswered = Math.max(0, Math.min(answeredCount || 0, safeTotal));
+  const pct = Math.round((safeAnswered / safeTotal) * 100);
+
+  labelEl.textContent = label;
+  textEl.textContent = `${safeAnswered}/${safeTotal}`;
+  fillEl.style.width = `${pct}%`;
+  progressEl.classList.add('visible');
+}
+
+function hideQuizProgress() {
+  const progressEl = document.getElementById('poll-progress');
+  if (progressEl) progressEl.classList.remove('visible');
+}
+
+function showQuizCompletedState() {
+  const kickerEl = document.getElementById('poll-kicker');
+  const questionEl = document.getElementById('poll-question');
+  const subtitleEl = document.getElementById('poll-subtitle');
+  const choiceList = document.getElementById('poll-choice-list');
+  const submitRow = document.getElementById('poll-submit-row');
+  const noteEl = document.getElementById('poll-note');
+  const resultsEl = document.getElementById('poll-results');
+
+  setPollOverlayVisible(true);
+  if (kickerEl) kickerEl.textContent = 'Quiz ao vivo';
+  if (questionEl) questionEl.textContent = 'Quiz concluído';
+  if (subtitleEl) subtitleEl.textContent = `Você respondeu ${quizPolls.length} de ${quizPolls.length} perguntas.`;
+  renderQuizProgress(quizPolls.length, quizPolls.length, 'Progresso do quiz');
+  if (choiceList) {
+    choiceList.innerHTML = '';
+    choiceList.style.display = 'none';
+  }
+  if (submitRow) submitRow.style.display = 'none';
+  if (resultsEl) {
+    resultsEl.innerHTML = '';
+    resultsEl.classList.remove('visible');
+  }
+  if (noteEl) noteEl.textContent = 'Obrigado por participar. Aguarde os resultados.';
+}
+
 function renderPollOverlay() {
+  const kickerEl = document.getElementById('poll-kicker');
   const questionEl = document.getElementById('poll-question');
   const subtitleEl = document.getElementById('poll-subtitle');
   const choiceList = document.getElementById('poll-choice-list');
@@ -714,26 +836,68 @@ function renderPollOverlay() {
   const clearBtn = document.getElementById('poll-clear-btn');
   const noteEl = document.getElementById('poll-note');
   const resultsEl = document.getElementById('poll-results');
+  const isConsolidatedResults = pollControlState.enquete_status === 'results' && pollControlState.acao === 'poll_results_all';
 
-  if (!activePoll || pollControlState.enquete_status === 'closed') {
+  if (pollControlState.enquete_status === 'closed') {
+    clearPollOverlay();
+    return;
+  }
+
+  const isQuizFlow = pollControlState.enquete_status === 'open' && quizPolls.length > 0;
+
+  if (isQuizFlow) {
+    if (quizCurrentIndex >= quizPolls.length) {
+      showQuizCompletedState();
+      return;
+    }
+
+    activePoll = getCurrentQuizPoll();
+    activePollOptions = quizOptionsByPoll.get(activePoll.id) || [];
+  }
+
+  if (!activePoll) {
     clearPollOverlay();
     return;
   }
 
   setPollOverlayVisible(true);
 
+  if (kickerEl) {
+    if (isQuizFlow) {
+      kickerEl.textContent = `Quiz ao vivo · ${quizCurrentIndex + 1}/${quizPolls.length}`;
+    } else if (isConsolidatedResults) {
+      kickerEl.textContent = 'Resultados consolidados';
+    } else {
+      kickerEl.textContent = 'Enquete ao vivo';
+    }
+  }
+
   if (questionEl) questionEl.textContent = activePoll.pergunta || 'Enquete';
   if (subtitleEl) {
-    subtitleEl.textContent = `${activePoll.tipo === 'checkbox' ? 'Caixa de seleção' : 'Múltipla escolha'}${activePoll.com_respostas_certas ? ' · quiz com respostas corretas' : ' · pesquisa aberta'}`;
+    const modeText = isQuizFlow ? ' · fluxo sequencial' : (isConsolidatedResults ? ' · visão geral do quiz' : '');
+    subtitleEl.textContent = `${activePoll.tipo === 'checkbox' ? 'Caixa de seleção' : 'Múltipla escolha'}${activePoll.com_respostas_certas ? ' · quiz com respostas corretas' : ' · pesquisa aberta'}${modeText}`;
+  }
+
+  if (isQuizFlow) {
+    renderQuizProgress(quizCurrentIndex, quizPolls.length, 'Progresso do quiz');
+  } else {
+    hideQuizProgress();
   }
 
   if (pollControlState.enquete_status === 'results') {
     if (submitRow) submitRow.style.display = 'none';
     if (choiceList) choiceList.style.display = 'none';
-    if (noteEl) noteEl.textContent = activePoll.com_respostas_certas
-      ? 'Os resultados mostram quantas pessoas acertaram e erraram.'
-      : 'Resumo das respostas enviadas pela audiência.';
-    renderPollResults();
+    if (isConsolidatedResults) {
+      if (questionEl) questionEl.textContent = 'Resumo completo do quiz';
+      if (subtitleEl) subtitleEl.textContent = `${quizPolls.length} pergunta${quizPolls.length !== 1 ? 's' : ''} consideradas no consolidado.`;
+      if (noteEl) noteEl.textContent = 'Visão geral com participantes, acertos e desempenho por pergunta.';
+      renderQuizConsolidatedResults();
+    } else {
+      if (noteEl) noteEl.textContent = activePoll.com_respostas_certas
+        ? 'Os resultados mostram quantas pessoas acertaram e erraram.'
+        : 'Resumo das respostas enviadas pela audiência.';
+      renderPollResults();
+    }
     return;
   }
 
@@ -743,7 +907,13 @@ function renderPollOverlay() {
     resultsEl.innerHTML = '';
     resultsEl.classList.remove('visible');
   }
-  if (noteEl) noteEl.textContent = pollSelection.length ? formatPollSelectionText(pollSelection) : 'Escolha uma ou mais opções e toque em Responder.';
+  if (noteEl) {
+    const defaultNote = isQuizFlow
+      ? 'Escolha uma ou mais opções e toque em Responder para avançar.'
+      : 'Escolha uma ou mais opções e toque em Responder.';
+    noteEl.textContent = pollSelection.length ? formatPollSelectionText(pollSelection) : defaultNote;
+  }
+  if (submitBtn) submitBtn.textContent = isQuizFlow && quizCurrentIndex === (quizPolls.length - 1) ? 'Finalizar quiz' : 'Responder';
   if (submitBtn) submitBtn.disabled = false;
   if (clearBtn) clearBtn.disabled = false;
 
@@ -845,11 +1015,96 @@ function renderPollResults() {
   resultsEl.classList.add('visible');
 }
 
+function renderQuizConsolidatedResults() {
+  const resultsEl = document.getElementById('poll-results');
+  if (!resultsEl) return;
+
+  const participantsSet = new Set();
+  let totalAnswers = 0;
+  let totalCorrect = 0;
+  let totalCheckedQuestions = 0;
+
+  const questionBlocks = quizPolls.map((poll, index) => {
+    const options = quizOptionsByPoll.get(poll.id) || [];
+    const rows = quizAllResponsesByPoll.get(poll.id) || [];
+    const counts = new Map(options.map(option => [option.id, 0]));
+
+    rows.forEach(row => {
+      if (row.participante_id) participantsSet.add(row.participante_id);
+      totalAnswers += 1;
+      const answers = Array.isArray(row.respostas) ? row.respostas : [];
+      answers.forEach(optionId => {
+        counts.set(optionId, (counts.get(optionId) || 0) + 1);
+      });
+    });
+
+    let correctCount = 0;
+    if (poll.com_respostas_certas) {
+      const correctIds = new Set(options.filter(option => option.correta).map(option => option.id));
+      rows.forEach(row => {
+        const selectedSet = new Set(Array.isArray(row.respostas) ? row.respostas : []);
+        const isCorrect = selectedSet.size === correctIds.size && Array.from(selectedSet).every(id => correctIds.has(id));
+        if (isCorrect) correctCount += 1;
+      });
+      totalCorrect += correctCount;
+      totalCheckedQuestions += rows.length;
+    }
+
+    return `
+      <div class="poll-result-row">
+        <div class="poll-consolidated-title">Pergunta ${index + 1}</div>
+        <div class="poll-result-row-top">
+          <div>${escapeHtml(poll.pergunta)}</div>
+          <div>${rows.length} resposta${rows.length !== 1 ? 's' : ''}</div>
+        </div>
+        ${poll.com_respostas_certas ? `<div class="poll-result-meta">Acertos: ${correctCount}/${rows.length}</div>` : '<div class="poll-result-meta">Pergunta sem gabarito configurado.</div>'}
+        <div class="poll-result-list" style="margin-top:10px;">
+          ${options.map(option => {
+            const count = counts.get(option.id) || 0;
+            const percent = rows.length > 0 ? Math.round((count / rows.length) * 100) : 0;
+            const correctMarker = poll.com_respostas_certas && option.correta ? '<div class="poll-result-correct">Resposta correta</div>' : '';
+            return `
+              <div class="poll-result-row" style="padding:10px; border-radius:10px;">
+                <div class="poll-result-row-top">
+                  <div>${escapeHtml(option.texto)}</div>
+                  <div>${count}</div>
+                </div>
+                <div class="poll-result-bar"><span style="width:${percent}%"></span></div>
+                <div class="poll-result-meta">${percent}% selecionaram esta opção</div>
+                ${correctMarker}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  const summaryCards = [
+    `<div class="poll-result-summary-card"><div class="poll-result-summary-title">Participantes</div><div class="poll-result-summary-value">${participantsSet.size}</div></div>`,
+    `<div class="poll-result-summary-card"><div class="poll-result-summary-title">Perguntas</div><div class="poll-result-summary-value">${quizPolls.length}</div></div>`,
+    `<div class="poll-result-summary-card"><div class="poll-result-summary-title">Respostas</div><div class="poll-result-summary-value">${totalAnswers}</div></div>`
+  ];
+
+  if (totalCheckedQuestions > 0) {
+    const accuracy = Math.round((totalCorrect / totalCheckedQuestions) * 100);
+    summaryCards.push(`<div class="poll-result-summary-card"><div class="poll-result-summary-title">Taxa de acerto</div><div class="poll-result-summary-value">${accuracy}%</div></div>`);
+  }
+
+  resultsEl.innerHTML = `
+    <div class="poll-result-summary">${summaryCards.join('')}</div>
+    <div class="poll-result-list">${questionBlocks.join('')}</div>
+  `;
+
+  resultsEl.classList.add('visible');
+}
+
 async function loadActivePollFromControl(controlPayload) {
   const pollId = controlPayload?.enquete_id || pollControlState.enquete_id;
   const status = controlPayload?.enquete_status || pollControlState.enquete_status || 'closed';
+  const action = controlPayload?.acao || pollControlState.acao || null;
 
-  pollControlState = { enquete_id: pollId || null, enquete_status: status };
+  pollControlState = { enquete_id: pollId || null, enquete_status: status, acao: action };
 
   if (pollResponsesChannel) {
     await db.removeChannel(pollResponsesChannel);
@@ -860,6 +1115,67 @@ async function loadActivePollFromControl(controlPayload) {
     clearPollOverlay();
     return;
   }
+
+  if (status === 'open' || (status === 'results' && action === 'poll_results_all')) {
+    const { data: allPolls, error: pollsError } = await db
+      .from('enquetes')
+      .select('id, pergunta, tipo, com_respostas_certas, ordem')
+      .eq('apresentacao_id', apresentacaoId)
+      .order('ordem');
+
+    if (pollsError || !allPolls || allPolls.length === 0) {
+      clearPollOverlay();
+      return;
+    }
+
+    const startAt = allPolls.findIndex(item => item.id === pollId);
+    quizPolls = allPolls.slice(startAt >= 0 ? startAt : 0);
+    const quizPollIds = quizPolls.map(item => item.id);
+
+    const [optionsRes, myResponsesRes, allResponsesRes] = await Promise.all([
+      db.from('enquete_opcoes').select('id, enquete_id, texto, correta, ordem').in('enquete_id', quizPollIds).order('ordem'),
+      db.from('enquete_respostas').select('enquete_id, respostas').in('enquete_id', quizPollIds).eq('participante_id', pollParticipantId),
+      db.from('enquete_respostas').select('enquete_id, participante_id, respostas').in('enquete_id', quizPollIds)
+    ]);
+
+    quizOptionsByPoll = new Map();
+    (optionsRes.data || []).forEach(option => {
+      const list = quizOptionsByPoll.get(option.enquete_id) || [];
+      list.push(option);
+      quizOptionsByPoll.set(option.enquete_id, list);
+    });
+
+    quizResponsesByPoll = new Map();
+    (myResponsesRes.data || []).forEach(response => {
+      if (Array.isArray(response.respostas)) {
+        quizResponsesByPoll.set(response.enquete_id, response.respostas);
+      }
+    });
+
+    quizAllResponsesByPoll = new Map();
+    (allResponsesRes.data || []).forEach(response => {
+      const list = quizAllResponsesByPoll.get(response.enquete_id) || [];
+      list.push(response);
+      quizAllResponsesByPoll.set(response.enquete_id, list);
+    });
+
+    quizCurrentIndex = status === 'open' ? getFirstUnansweredQuizIndex() : 0;
+    activePoll = getCurrentQuizPoll();
+    if (activePoll) {
+      activePollOptions = quizOptionsByPoll.get(activePoll.id) || [];
+      activePollResponses = quizAllResponsesByPoll.get(activePoll.id) || [];
+      pollSelection = status === 'open' ? (quizResponsesByPoll.get(activePoll.id) || []) : [];
+    }
+
+    renderPollOverlay();
+    return;
+  }
+
+  quizPolls = [];
+  quizOptionsByPoll = new Map();
+  quizResponsesByPoll = new Map();
+  quizAllResponsesByPoll = new Map();
+  quizCurrentIndex = 0;
 
   const [pollRes, optionsRes, responsesRes, myResponseRes] = await Promise.all([
     db.from('enquetes').select('id, pergunta, tipo, com_respostas_certas').eq('id', pollId).single(),
@@ -928,6 +1244,20 @@ async function submitPollResponse() {
     const noteEl = document.getElementById('poll-note');
     if (noteEl) noteEl.textContent = `Não foi possível salvar sua resposta: ${error.message}`;
     if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  if (quizPolls.length) {
+    quizResponsesByPoll.set(activePoll.id, [...pollSelection]);
+    quizCurrentIndex = Math.min(quizCurrentIndex + 1, quizPolls.length);
+    const nextPoll = getCurrentQuizPoll();
+    if (nextPoll) {
+      activePoll = nextPoll;
+      activePollOptions = quizOptionsByPoll.get(nextPoll.id) || [];
+      pollSelection = quizResponsesByPoll.get(nextPoll.id) || [];
+    }
+    if (submitBtn) submitBtn.disabled = false;
+    renderPollOverlay();
     return;
   }
 
@@ -1117,7 +1447,7 @@ async function init() {
   // Busca estado atual
   const { data: ctrl } = await db
     .from('controle')
-    .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, efeito, efeito_updated_at, enquete_id, enquete_status, enquete_updated_at')
+    .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, efeito, efeito_updated_at, enquete_id, enquete_status, enquete_updated_at, acao')
     .eq('apresentacao_id', ap.id)
     .single();
 
@@ -1150,7 +1480,7 @@ async function init() {
       handleAcao(acao, slide_atual);
       syncPointerFromPayload(payload.new);
       syncQrFromPayload(payload.new);
-      if (payload.new.enquete_id !== pollControlState.enquete_id || payload.new.enquete_status !== pollControlState.enquete_status) {
+      if (payload.new.enquete_id !== pollControlState.enquete_id || payload.new.enquete_status !== pollControlState.enquete_status || payload.new.acao !== pollControlState.acao) {
         loadActivePollFromControl(payload.new);
       }
       const effectStamp = payload.new.efeito_updated_at || null;

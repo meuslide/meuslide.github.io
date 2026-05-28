@@ -209,6 +209,12 @@ body {
   gap:12px;
   margin-bottom:14px;
 }
+.poll-head-right {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
+}
 .poll-title {
   font-family:'Syne',sans-serif;
   font-weight:700;
@@ -226,6 +232,18 @@ body {
   font-size:0.75rem;
   opacity:0.45;
   white-space:nowrap;
+}
+.poll-global-actions {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.poll-global-btn {
+  width:auto;
+  min-width:130px;
+  padding:9px 10px;
+  font-size:0.72rem;
 }
 .poll-list {
   display:flex;
@@ -282,6 +300,7 @@ body {
 .poll-badge.ok { border-color:rgba(26,158,92,0.35); color:#b8ffd7; }
 .poll-badge.warn { border-color:rgba(232,77,42,0.35); color:#ffd0c6; }
 .poll-badge.info { border-color:rgba(42,110,232,0.35); color:#d5e2ff; }
+.poll-badge.quiz { border-color:rgba(255,215,130,0.4); color:#ffe3ac; }
 .poll-card-actions {
   display:flex;
   flex-wrap:wrap;
@@ -663,9 +682,15 @@ body {
     <div class="poll-head">
       <div>
         <div class="poll-title">Enquetes</div>
-        <div class="poll-sub">Inicie, encerre ou mostre resultados das perguntas cadastradas.</div>
+        <div class="poll-sub">Inicie um quiz sequencial (uma pergunta por vez), encerre ou exiba os resultados.</div>
       </div>
-      <div class="poll-state" id="poll-state">sem enquetes</div>
+      <div class="poll-head-right">
+        <div class="poll-state" id="poll-state">sem enquetes</div>
+        <div class="poll-global-actions">
+          <button class="media-btn poll-global-btn" id="btn-poll-start-full" type="button">Iniciar quiz completo</button>
+          <button class="media-btn poll-global-btn" id="btn-poll-results-full" type="button">Resultados consolidados</button>
+        </div>
+      </div>
     </div>
     <div class="poll-list" id="poll-list">
       <div class="poll-empty">Carregando enquetes...</div>
@@ -788,7 +813,7 @@ let effectSending = false;
 let qrVisible = false;
 let qrSending = false;
 let polls = [];
-let pollControlState = { enquete_id: null, enquete_status: 'closed' };
+let pollControlState = { enquete_id: null, enquete_status: 'closed', acao: null };
 
 function escapeHtml(value) {
   return String(value || '')
@@ -951,13 +976,15 @@ function setQrDisabled(disabled) {
   if (btn) btn.disabled = disabled;
 }
 
-function getPollStatusLabel(status) {
+function getPollStatusLabel(status, action) {
+  if (status === 'results' && action === 'poll_results_all') return 'Resultados consolidados';
   if (status === 'open') return 'Ativa';
   if (status === 'results') return 'Resultados';
   return 'Encerrada';
 }
 
-function getPollStatusClass(status) {
+function getPollStatusClass(status, action) {
+  if (status === 'results' && action === 'poll_results_all') return 'quiz';
   if (status === 'open') return 'ok';
   if (status === 'results') return 'info';
   return 'warn';
@@ -974,7 +1001,7 @@ function updatePollStateLabel() {
     el.textContent = 'sem enquetes ativas';
     return;
   }
-  el.textContent = `${getPollStatusLabel(pollControlState.enquete_status)}`;
+  el.textContent = `${getPollStatusLabel(pollControlState.enquete_status, pollControlState.acao)}`;
 }
 
 function renderPolls() {
@@ -991,7 +1018,7 @@ function renderPolls() {
 
   polls.forEach(poll => {
     const isActive = poll.id === pollControlState.enquete_id;
-    const statusLabel = isActive ? getPollStatusLabel(pollControlState.enquete_status) : 'Pausada';
+    const statusLabel = isActive ? getPollStatusLabel(pollControlState.enquete_status, pollControlState.acao) : 'Pausada';
     const card = document.createElement('div');
     card.className = `poll-card${isActive ? ' active' : ''}`;
     card.innerHTML = `
@@ -1002,19 +1029,20 @@ function renderPolls() {
         </div>
       </div>
       <div class="poll-card-badges">
-        <span class="poll-badge ${isActive ? getPollStatusClass(pollControlState.enquete_status) : 'warn'}">${statusLabel}</span>
+        <span class="poll-badge ${isActive ? getPollStatusClass(pollControlState.enquete_status, pollControlState.acao) : 'warn'}">${statusLabel}</span>
         ${poll.com_respostas_certas ? '<span class="poll-badge ok">Quiz</span>' : '<span class="poll-badge info">Pesquisa</span>'}
+        ${isActive && pollControlState.acao === 'poll_open_full' ? '<span class="poll-badge quiz">Começo completo</span>' : ''}
       </div>
       <div class="poll-card-actions">
-        <button class="media-btn poll-action-btn" data-action="start">Iniciar</button>
-        <button class="media-btn poll-action-btn" data-action="close">Encerrar</button>
-        <button class="media-btn poll-action-btn" data-action="results">Exibir resultados</button>
+        <button class="media-btn poll-action-btn" data-action="start">Iniciar daqui</button>
+        <button class="media-btn poll-action-btn" data-action="close">Encerrar quiz</button>
+        <button class="media-btn poll-action-btn" data-action="results">Resultado da pergunta</button>
       </div>
     `;
 
-    card.querySelector('[data-action="start"]').addEventListener('click', () => setPollStatus(poll, 'open'));
+    card.querySelector('[data-action="start"]').addEventListener('click', () => setPollStatus(poll, 'open', { startFromFirst: false, consolidatedResults: false }));
     card.querySelector('[data-action="close"]').addEventListener('click', () => setPollStatus(poll, 'closed'));
-    card.querySelector('[data-action="results"]').addEventListener('click', () => setPollStatus(poll, 'results'));
+    card.querySelector('[data-action="results"]').addEventListener('click', () => setPollStatus(poll, 'results', { startFromFirst: false, consolidatedResults: false }));
 
     list.appendChild(card);
   });
@@ -1064,10 +1092,22 @@ async function loadPolls() {
   renderPolls();
 }
 
-async function setPollStatus(poll, status) {
-  if (!apresentacao || !poll) return;
+async function setPollStatus(poll, status, options = {}) {
+  if (!apresentacao) return;
 
-  const action = status === 'open' ? 'poll_open' : status === 'results' ? 'poll_results' : 'poll_close';
+  const { startFromFirst = false, consolidatedResults = false } = options;
+  const firstPoll = polls[0] || null;
+  const resolvedPoll = startFromFirst || consolidatedResults ? firstPoll : poll;
+
+  if (!resolvedPoll) {
+    flash('Nenhuma enquete cadastrada para esta ação.', true);
+    return;
+  }
+
+  let action = 'poll_close';
+  if (status === 'open') action = startFromFirst ? 'poll_open_full' : 'poll_open';
+  if (status === 'results') action = consolidatedResults ? 'poll_results_all' : 'poll_results';
+
   const { error } = await db
     .from('controle')
     .upsert({
@@ -1079,7 +1119,7 @@ async function setPollStatus(poll, status) {
       pointer_y: pointerState.y,
       pointer_visible: pointerState.visible,
       pointer_updated_at: new Date().toISOString(),
-      enquete_id: poll.id,
+      enquete_id: resolvedPoll.id,
       enquete_status: status,
       enquete_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -1090,9 +1130,17 @@ async function setPollStatus(poll, status) {
     return;
   }
 
-  pollControlState = { enquete_id: poll.id, enquete_status: status };
+  pollControlState = { enquete_id: resolvedPoll.id, enquete_status: status, acao: action };
   renderPolls();
-  flash(status === 'open' ? 'Enquete iniciada' : status === 'results' ? 'Resultados exibidos' : 'Enquete encerrada');
+  if (status === 'open') {
+    flash(startFromFirst ? 'Quiz completo iniciado' : 'Quiz iniciado a partir da pergunta selecionada');
+    return;
+  }
+  if (status === 'results') {
+    flash(consolidatedResults ? 'Resultados consolidados exibidos' : 'Resultados da pergunta exibidos');
+    return;
+  }
+  flash('Quiz encerrado');
 }
 
 function updateThumb() {
@@ -1331,7 +1379,7 @@ async function doAuth(ap) {
     // Pega estado atual
     const { data: ctrl } = await db
         .from('controle')
-      .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, enquete_id, enquete_status, enquete_updated_at')
+      .select('slide_atual, pointer_x, pointer_y, pointer_visible, qr_visible, enquete_id, enquete_status, enquete_updated_at, acao')
         .eq('apresentacao_id', ap.id)
         .single();
 
@@ -1355,7 +1403,8 @@ async function doAuth(ap) {
 
     pollControlState = {
       enquete_id: ctrl?.enquete_id || null,
-      enquete_status: ctrl?.enquete_status || 'closed'
+      enquete_status: ctrl?.enquete_status || 'closed',
+      acao: ctrl?.acao || null
     };
 
     if (!ctrl) {
@@ -1384,6 +1433,15 @@ async function doAuth(ap) {
     updateThumb();
     updatePollStateLabel();
     loadPolls();
+
+    const startFullButton = document.getElementById('btn-poll-start-full');
+    const resultsFullButton = document.getElementById('btn-poll-results-full');
+    if (startFullButton) {
+      startFullButton.addEventListener('click', () => setPollStatus(polls[0] || null, 'open', { startFromFirst: true, consolidatedResults: false }));
+    }
+    if (resultsFullButton) {
+      resultsFullButton.addEventListener('click', () => setPollStatus(polls[0] || null, 'results', { startFromFirst: true, consolidatedResults: true }));
+    }
 
     // Botões
     const prevButton = document.getElementById('btn-prev');
@@ -1522,10 +1580,11 @@ async function doAuth(ap) {
         if (typeof payload.new.qr_visible === 'boolean') {
           setQrState(payload.new.qr_visible);
         }
-        if (payload.new.enquete_id !== pollControlState.enquete_id || payload.new.enquete_status !== pollControlState.enquete_status) {
+        if (payload.new.enquete_id !== pollControlState.enquete_id || payload.new.enquete_status !== pollControlState.enquete_status || payload.new.acao !== pollControlState.acao) {
           pollControlState = {
             enquete_id: payload.new.enquete_id || null,
-            enquete_status: payload.new.enquete_status || 'closed'
+            enquete_status: payload.new.enquete_status || 'closed',
+            acao: payload.new.acao || null
           };
           updatePollStateLabel();
           renderPolls();
